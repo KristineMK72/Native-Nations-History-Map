@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>🌿 Echoes of the Land: Indigenous Story Map</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+<style>
+    /* --- Base Layout & Theme --- */
+    html, body {
+        height: 100%;
+        margin: 0;
+        font-family: 'Segoe UI', sans-serif;
+        background-color: #111;
+        color: #eee;
+        overflow: hidden;
+    }
+
+    /* Fixed Header at the top */
+    header {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        padding: 10px 0;
+        background: rgba(0, 0, 0, 0.9);
+        color: #fff;
+        text-align: center;
+        z-index: 2000;
+        height: 50px;
+    }
+    header h1 { margin: 0; font-size: 1.5em; color: #800080; }
+    header p { margin: 0; font-size: 0.9em; color: #ccc; }
+
+    /* Main Container for the entire application window below the header */
+    #main-app {
+        position: absolute;
+        top: 50px; /* Starts below the header */
+        width: 100%;
+        height: calc(100vh - 50px);
+        display: flex;
+    }
+
+    /* Story Panel (Takes 30%) */
+    #storyPanel {
+        width: 30%;
+        min-width: 280px;
+        background: rgba(20, 20, 20, 0.9);
+        padding: 1.5em;
+        overflow-y: auto;
+        z-index: 10;
+        box-sizing: border-box;
+        transition: transform 0.3s ease-in-out;
+    }
+
+    /* Map (Takes remaining space) */
+    #map {
+        flex-grow: 1;
+        height: 100%;
+        z-index: 1;
+    }
+    
+    /* Map Title Overlay (Fixed to the map viewport) */
+    #map-title-overlay {
+        position: absolute;
+        top: 0;
+        left: 30%; 
+        width: 70%; 
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        z-index: 10;
+        text-align: center;
+        line-height: 40px;
+        font-size: 1.1rem;
+        font-weight: bold;
+        border-bottom: 2px solid #800080;
+    }
+
+    /* Controls Bar */
+    .controls {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        background: #222;
+        padding: 8px;
+        gap: 8px;
+        z-index: 10000;
+    }
+
+    .controls button {
+        background: #444;
+        color: #eee;
+        border: none;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    /* --- Marker/Layer Styling --- */
+    .story-marker div {
+        background-color: #800080; 
+        color: #FFD700; 
+        font-size: 16px;
+        font-weight: bold;
+        text-align: center;
+        border-radius: 50%;
+        width: 26px; 
+        height: 26px; 
+        line-height: 26px; 
+        border: 2px solid #FFD700;
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 0 8px rgba(128, 0, 128, 0.8);
+    }
+    
+    /* --- Mobile Adjustments (Chapter Fix) --- */
+    @media (max-width: 768px) {
+        #main-app { flex-direction: column; }
+        
+        #storyPanel {
+            width: 100%;
+            height: 100%;
+            transform: translateY(100%); 
+            position: absolute;
+        }
+
+        #storyPanel.visible {
+            transform: translateY(0);
+        }
+        
+        #map { width: 100%; height: 100%; }
+        
+        #map-title-overlay { display: none; }
+        .controls { flex-wrap: wrap; }
+    }
+</style>
+</head>
+<body>
+    <header>
+        <h1>🌿 Echoes of the Land</h1>
+        <p>A Story Map of Indigenous Peoples' Journeys</p>
+    </header>
+    
+    <audio id="powWowAudio" loop preload="auto">
+        <source src="audio/powwow_drum.mp3" type="audio/mpeg">
+        Your browser does not support ambient audio.
+    </audio>
+
+    <div id="map-title-overlay">Earliest North American Migrations</div> 
+
+    <div id="main-app">
+        <div id="storyPanel">
+            <h2 id="storyEra"></h2>
+            <p id="storyYear"></p>
+            <p id="storyText"></p>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <div class="controls">
+        <button id="playPause">Play/Next</button>
+        <button id="reservationToggle">Show Reservations</button>
+        <button id="trailToggle">Show Trail/Route</button>
+        <button id="tribalToggle">Hide All Tribes (574)</button> 
+        <button id="zoomMN">Zoom to MN</button>
+        <button id="storyToggle" class="mobile-only">Show Story</button>
+        <button id="resetMap">Reset Map</button>
+    </div>
+
+    <script>
+        // --- DATA DEFINITIONS ---
+        const trailOfTearsData = [
+            { name: "Cherokee, NC (Start)", coords: [35.5019, -83.3370], popup: "Original Cherokee Homelands, 1838" },
+            { name: "Red Clay, TN", coords: [34.9654, -84.9926], popup: "Last seat of the Cherokee National Council." },
+            { name: "Waterloo, AL", coords: [34.9392, -88.0863], popup: "Site where detachments began water travel." },
+            { name: "Fort Smith, AR", coords: [35.3853, -94.3986], popup: "Major stopping point and convergence of routes." },
+            { name: "Tahlequah, OK (End)", coords: [35.9189, -94.9754], popup: "Designated Indian Territory, journey's end." }
+        ];
+
+        const ojibweStops = [
+            { name: "Eastward Origin", coords: [45.0, -84.0], popup: "Traditional lands before the migration prophecy." },
+            { name: "Sault Ste. Marie", coords: [46.5050, -84.3540], popup: "Sault Ste. Marie (Gichigamiin): Important gathering point." },
+            { name: "Madeline Island", coords: [46.8118, -90.7937], popup: "Spirit Island (Madeline Island): Center of the Ojibwe Nation." },
+            { name: "Duluth/Superior", coords: [46.75, -92.1], popup: "Final western destination along Lake Superior." }
+        ];
+
+        const storyChapters = [
+            { name: "Beringia Crossing", year: "~20,000 BCE", coords: [64.8, -165.0], text: "Ancestors migrate from Asia via land bridge. This period saw the development of early tool-making cultures.", mapTitle: "Earliest North American Migrations" },
+            { name: "Mississippian Culture", year: "~1000 CE", coords: [38.6, -90.1], text: "Cahokia: The largest Mississippian city near modern-day St. Louis, demonstrating complex ancient urban planning.", mapTitle: "Ancient Urban Centers" },
+            { name: "Ojibwe Migration Route", year: "~1400 CE", coords: [46.75, -85.5], text: "The Ojibwe people migrated west along the Great Lakes following the prophecy of the sacred shell.", mapTitle: "The Great Lakes Crossing" },
+            { name: "Contact in the Northeast", year: "1607 CE", coords: [40.7, -74.0], text: "First prolonged contact with European colonists in the Eastern Woodlands, initiating massive land loss.", mapTitle: "Early European Contact" },
+            { name: "Dakota Conflict 1862", year: "1862 CE", coords: [44.75, -94.5], text: "The U.S.–Dakota War erupted due to broken treaties and starvation, leading to the largest mass execution in U.S. history.", mapTitle: "The U.S.–Dakota War of 1862" },
+            { name: "Mille Lacs/Ojibwe", year: "Present Day", coords: [46.1, -93.6], text: "The Mille Lacs Band maintains sovereignty and cultural traditions in central Minnesota.", mapTitle: "Modern Tribal Sovereignty (Mille Lacs)" }
+        ];
+
+        const mnReservationsGeoJSON = {
+            "type": "FeatureCollection",
+            "features": [
+                { "type": "Feature", "properties": { "name": "Bois Forte Reservation", "tribe": "Bois Forte Band of Chippewa" }, "geometry": { "type": "Polygon", "coordinates": [[[-92.9, 48.2], [-92.9, 47.8], [-92.5, 47.8], [-92.5, 48.2], [-92.9, 48.2]]] } },
+                { "type": "Feature", "properties": { "name": "Fond du Lac Reservation", "tribe": "Fond du Lac Band of Lake Superior Chippewa" }, "geometry": { "type": "Polygon", "coordinates": [[[-92.3, 46.8], [-92.3, 46.6], [-92.0, 46.6], [-92.0, 46.8], [-92.3, 46.8]]] } },
+                { "type": "Feature", "properties": { "name": "Grand Portage Reservation", "tribe": "Grand Portage Band of Lake Superior Chippewa" }, "geometry": { "type": "Polygon", "coordinates": [[[-89.8, 47.9], [-89.8, 47.8], [-89.6, 47.8], [-89.6, 47.9], [-89.8, 47.9]]] } },
+                { "type": "Feature", "properties": { "name": "Leech Lake Reservation", "tribe": "Leech Lake Band of Ojibwe" }, "geometry": { "type": "Polygon", "coordinates": [[[-94.6, 47.4], [-94.6, 47.1], [-94.2, 47.1], [-94.2, 47.4], [-94.6, 47.4]]] } },
+                { "type": "Feature", "properties": { "name": "Mille Lacs Reservation", "tribe": "Mille Lacs Band of Ojibwe" }, "geometry": { "type": "Polygon", "coordinates": [[[-93.7, 46.1], [-93.7, 45.9], [-93.4, 45.9], [-93.4, 46.1], [-93.7, 46.1]]] } },
+                { "type": "Feature", "properties": { "name": "Red Lake Nation", "tribe": "Red Lake Band of Chippewa" }, "geometry": { "type": "Polygon", "coordinates": [[[-95.3, 48.2], [-95.3, 47.8], [-94.8, 47.8], [-94.8, 48.2], [-95.3, 48.2]]] } },
+            ]
+        };
+        
+        const ojibweCrossingLine = [
+            [45.0, -84.0], [46.0, -86.0], [46.7, -85.5], [46.75, -92.1], [46.7, -93.6]
+        ];
+        
+        const tribalLocations574 = [
+            { name: "Navajo Nation", coords: [35.8427, -109.5218], tribe: "Navajo", pop: 173000 },
+            { name: "Oglala Sioux Tribe", coords: [43.4253, -102.3958], tribe: "Lakota", pop: 19000 },
+            { name: "Cherokee Nation HQ", coords: [36.1983, -94.9822], tribe: "Cherokee", pop: 140000 },
+            { name: "Pueblo of Acoma", coords: [35.0392, -107.5756], tribe: "Keres", pop: 3000 },
+            { name: "Mashantucket Pequot", coords: [41.4580, -71.9664], tribe: "Pequot", pop: 1000 },
+            ...Array(569).fill(0).map((_, i) => ({
+                name: `Tribal Entity ${i + 6}`,
+                coords: [35 + (Math.random() * 15), -115 + (Math.random() * 30)],
+                tribe: "Various",
+                pop: Math.floor(Math.random() * 5000)
+            }))
+        ];
+
+
+        // --- Global Variables ---
+        let map;
+        let reservationLayer = L.layerGroup();
+        let trailLayer = L.layerGroup();
+        let storyMarkersLayer = L.layerGroup();
+        let tribalDotsLayer = L.layerGroup(); 
+        const defaultCenter = [39.8, -98.5];
+        const defaultZoom = 4;
+        const mnBounds = [[43.5, -97.5], [49.5, -89.0]];
+        let currentChapterIndex = 0;
+
+        // --- Map Initialization ---
+        window.addEventListener('DOMContentLoaded', () => {
+            
+            // 1. Map Initialization
+            map = L.map('map', {
+                center: defaultCenter,
+                zoom: defaultZoom,
+                zoomControl: true,
+                attributionControl: true
+            });
+
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+                maxZoom: 19,
+                attribution: '&copy; CartoDB & OpenStreetMap contributors'
+            }).addTo(map);
+
+            // 2. Load all GeoJSON and Marker data
+            populateLayers();
+            
+            // 3. Set the initial state of the story panel
+            updateStoryPanel(storyChapters[0]);
+
+            // 4. Force map redraw (CRITICAL for dynamically sized maps)
+            setTimeout(() => {
+                map.invalidateSize();
+            }, 300); 
+        });
+
+        // --- Audio Logic ---
+        function startAudio() {
+            const audio = document.getElementById('powWowAudio');
+            audio.volume = 0.4;
+            audio.play().catch(error => {
+                console.warn("Audio autoplay blocked.");
+            });
+        }
+
+        // --- Layer Population ---
+        function populateLayers() {
+            // 1. Story Marker Icon (Native figure)
+            const storyMarkerIcon = L.divIcon({
+                className: 'story-marker',
+                iconSize: [30, 30],
+                iconAnchor: [15, 15],
+                html: '<div>&#x1F9D4;</div>' 
+            });
+
+            // 2. Story Markers (Primary Narrative Points)
+            storyChapters.forEach(chapter => {
+                const marker = L.marker(chapter.coords, { icon: storyMarkerIcon })
+                    .bindPopup(`<strong>${chapter.name}</strong><br>${chapter.text}`);
+                storyMarkersLayer.addLayer(marker);
+            });
+            storyMarkersLayer.addTo(map);
+
+            // 3. Tribal Dots (574 Placeholder Points)
+            tribalLocations574.forEach(data => {
+                const dot = L.circleMarker(data.coords, {
+                    radius: 3,
+                    color: '#33ff33', 
+                    fillColor: '#33ff33',
+                    fillOpacity: 0.7,
+                    weight: 1
+                }).bindPopup(`<strong>${data.name}</strong><br>Tribe: ${data.tribe}<br>Est. Pop: ${data.pop.toLocaleString()}`);
+                tribalDotsLayer.addLayer(dot);
+            });
+            tribalDotsLayer.addTo(map); 
+
+            // 4. Reservations (Polygons)
+            L.geoJSON(mnReservationsGeoJSON, {
+                style: { color: '#800080', weight: 2, fillOpacity: 0.3 },
+                onEachFeature: (f, l) => l.bindPopup(`<strong>Reservation: ${f.properties.name}</strong><br>Tribe: ${f.properties.tribe}`)
+            }).addTo(reservationLayer);
+
+            // 5. Trail of Tears Line and Stops
+            const trailCoords = trailOfTearsData.map(d => d.coords);
+            L.polyline(trailCoords, { color: '#8B0000', weight: 4, dashArray: '10,5' }).addTo(trailLayer);
+            
+            // Add all Trail of Tears stops (FIXED)
+            trailOfTearsData.forEach(d =>
+                L.circleMarker(d.coords, { radius: 5, color: '#8B0000', fillColor: '#FF4500', fillOpacity: 1, weight: 1.5 })
+                    .addTo(trailLayer).bindPopup(`<strong>Trail of Tears Stop:</strong> ${d.name}`)
+            );
+            
+            // 6. Ojibwe Crossing Route (Polyline & Stops)
+            L.polyline(ojibweCrossingLine, { color: '#00BFFF', weight: 3, opacity: 0.7, dashArray: '5, 5' })
+                .bindPopup("Ojibwe Great Lakes Migration Route")
+                .addTo(trailLayer);
+
+            // Add all Ojibwe Migration Stops (FIXED)
+            ojibweStops.forEach(d =>
+                L.circleMarker(d.coords, { radius: 5, color: '#00BFFF', fillColor: '#ADD8E6', fillOpacity: 1, weight: 1.5 })
+                    .addTo(trailLayer).bindPopup(`<strong>Ojibwe Migration Stop:</strong> ${d.name}`)
+            );
+        }
+
+        // --- Story/Interaction Functions ---
+        function updateStoryPanel(chapter) {
+            document.getElementById('storyEra').textContent = chapter.name;
+            document.getElementById('storyYear').textContent = chapter.year;
+            document.getElementById('storyText').textContent = chapter.text;
+            document.getElementById('map-title-overlay').textContent = chapter.mapTitle;
+
+            map.flyTo(chapter.coords, 6, { duration: 1.5 });
+            
+            // Highlight active marker and dim others
+            storyMarkersLayer.eachLayer(layer => {
+                const layerCoords = layer.getLatLng();
+                const isActive = (layerCoords.lat === chapter.coords[0] && layerCoords.lng === chapter.coords[1]);
+
+                const iconElement = L.DomUtil.get(layer._icon);
+                if (iconElement) {
+                    iconElement.style.opacity = isActive ? 1.0 : 0.4;
+                    iconElement.style.transform = isActive ? 'scale(1.5)' : 'scale(1)';
+                }
+            });
+        }
+        
+        // --- Control Button Handlers ---
+        document.getElementById('playPause').addEventListener('click', () => {
+            currentChapterIndex = (currentChapterIndex + 1) % storyChapters.length;
+            updateStoryPanel(storyChapters[currentChapterIndex]);
+            // AUDIO FIX: Starts audio on user click
+            startAudio(); 
+        });
+
+        document.getElementById('resetMap').addEventListener('click', () => {
+            map.setView(defaultCenter, defaultZoom);
+            currentChapterIndex = 0;
+            updateStoryPanel(storyChapters[0]);
+        });
+
+        document.getElementById('zoomMN').addEventListener('click', () => map.fitBounds(mnBounds));
+
+        document.getElementById('reservationToggle').addEventListener('click', e => {
+            if(map.hasLayer(reservationLayer)) {
+                map.removeLayer(reservationLayer);
+                e.target.textContent = 'Show Reservations';
+            } else {
+                map.addLayer(reservationLayer);
+                e.target.textContent = 'Hide Reservations';
+            }
+        });
+
+        document.getElementById('trailToggle').addEventListener('click', e => {
+            const isVisible = map.hasLayer(trailLayer);
+
+            if (isVisible) {
+                map.removeLayer(trailLayer);
+                e.target.textContent = 'Show Trail/Route';
+            } else {
+                map.addLayer(trailLayer);
+                e.target.textContent = 'Hide Trail/Route';
+
+                // Zoom and Summary Logic
+                const allTrailsGroup = L.featureGroup();
+                trailLayer.eachLayer(layer => {
+                    if (layer.getBounds) { allTrailsGroup.addLayer(layer); }
+                    else if (layer.getLatLng) { allTrailsGroup.addLayer(layer); }
+                });
+
+                if (allTrailsGroup.getLayers().length > 0) {
+                    map.fitBounds(allTrailsGroup.getBounds().pad(0.2));
+                }
+
+                const startCoords = trailOfTearsData[0].coords;
+                const summaryContent = `
+                    <strong>Major Routes Activated:</strong>
+                    <br>- Trail of Tears (Forced Relocation, Red)
+                    <br>- Ojibwe Migration Route (Great Lakes Prophecy, Cyan)
+                    <br><br>Zoomed to fit both historical routes.
+                `;
+
+                L.popup({ autoClose: true, className: 'trail-summary-popup' })
+                    .setLatLng(startCoords)
+                    .setContent(summaryContent)
+                    .openOn(map);
+            }
+        });
+        
+        document.getElementById('tribalToggle').addEventListener('click', e => {
+            if(map.hasLayer(tribalDotsLayer)) {
+                map.removeLayer(tribalDotsLayer);
+                e.target.textContent = 'Show All Tribes (574)';
+            } else {
+                map.addLayer(tribalDotsLayer);
+                e.target.textContent = 'Hide All Tribes (574)';
+            }
+        });
+
+        document.getElementById('storyToggle').addEventListener('click', e => {
+            const panel = document.getElementById('storyPanel');
+            panel.classList.toggle('visible');
+            e.target.textContent = panel.classList.contains('visible') ? 'Hide Story' : 'Show Story';
+        });
+    </script>
+</body>
+</html>
