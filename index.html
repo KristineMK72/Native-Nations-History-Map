@@ -1,235 +1,472 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-<title>🌍 Echoes of the Land: Global Indigenous Story Map</title>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>🌿 Echoes of the Land — Story Map</title>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
-<style>
-html, body {
-    height: 100%;
-    margin: 0;
-    font-family: 'Segoe UI', sans-serif;
-    background-color: #111;
-    color: #eee;
-    overflow: hidden;
-}
-header {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    padding: 10px 0;
-    background: rgba(0, 0, 0, 0.9);
-    color: #fff;
-    text-align: center;
-    z-index: 2000;
-    height: 50px;
-}
-header h1 { margin: 0; font-size: 1.5em; color: #800080; }
-header p { margin: 0; font-size: 0.9em; color: #ccc; }
+<!-- jsPDF for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" integrity="" crossorigin="anonymous"></script>
 
-#main-app {
-    position: absolute;
-    top: 50px;
-    width: 100%;
-    height: calc(100vh - 50px);
-    display: flex;
-}
-#storyPanel {
-    width: 30%;
+<style>
+  :root{
+    --panel-w: 380px;
+    --bg: #0b1020;
+    --panel-bg: rgba(14,18,28,0.96);
+    --accent: #8a2be2;
+    --muted: #9fb0cc;
+  }
+  html,body{ height:100%; margin:0; font-family:Inter, "Segoe UI", system-ui, -apple-system, Arial; background:var(--bg); color:#e8f0ff; }
+  /* layout: fixed left panel, right map */
+  .container { display:flex; height:100vh; width:100vw; overflow:hidden; }
+  #panel {
+    width: var(--panel-w);
     min-width: 280px;
-    background: rgba(20, 20, 20, 0.9);
-    padding: 1.5em;
-    overflow-y: auto;
-    z-index: 10;
+    max-width: 44%;
+    background: var(--panel-bg);
+    padding: 18px;
     box-sizing: border-box;
-    transition: transform 0.3s ease-in-out;
-}
-#map {
-    flex-grow: 1;
-    height: 100%;
-    z-index: 1;
-}
-#map-title-overlay {
-    position: absolute;
-    top: 50px;
-    left: 30%;
-    width: 70%;
-    background: rgba(0, 0, 0, 0.6);
-    color: #fff;
-    z-index: 10;
-    text-align: center;
-    line-height: 40px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    border-bottom: 2px solid #800080;
-}
-.controls {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    width: 100%;
-    display: flex;
-    justify-content: center;
-    background: #222;
-    padding: 8px;
-    gap: 8px;
-    z-index: 10000;
-}
-.controls button {
-    background: #444;
-    color: #eee;
-    border: none;
-    padding: 8px 12px;
-    border-radius: 6px;
-    cursor: pointer;
-}
-.story-marker div {
-    background-color: #800080;
-    color: #FFD700;
-    font-size: 16px;
-    font-weight: bold;
-    text-align: center;
-    border-radius: 50%;
-    width: 26px;
-    height: 26px;
-    line-height: 26px;
-    border: 2px solid #FFD700;
-    transition: all 0.3s ease-in-out;
-    box-shadow: 0 0 8px rgba(128, 0, 128, 0.8);
-}
-@media (max-width: 768px) {
-    #main-app { flex-direction: column; }
-    #storyPanel {
-        width: 100%;
-        height: 100%;
-        transform: translateY(100%);
-        position: absolute;
-    }
-    #storyPanel.visible { transform: translateY(0); }
-    #map-title-overlay { display: none; }
-}
+    overflow:auto;
+    border-right: 1px solid rgba(255,255,255,0.03);
+  }
+  #map { flex:1; height:100%; position:relative; }
+  header.app-header { display:flex; align-items:center; gap:12px; margin-bottom:12px; }
+  header.app-header h1 { font-size:20px; margin:0; color:var(--accent); }
+  header.app-header p { margin:0; font-size:12px; color:var(--muted); }
+
+  .chapter {
+    margin-bottom:18px;
+    padding:12px;
+    border-radius:8px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.00));
+    border:1px solid rgba(255,255,255,0.02);
+  }
+  .chapter h3 { margin:0 0 6px 0; font-size:16px; color:#fff; }
+  .chapter .year { color:var(--muted); margin-bottom:8px; font-size:13px; }
+  .chapter p { margin:0 0 8px 0; color:#dbeeff; line-height:1.4; }
+  .chapter .actions { display:flex; gap:8px; margin-top:8px; }
+  .btn {
+    background:#0f1724; color:#e7f1ff; border:1px solid rgba(255,255,255,0.04); padding:8px 10px; border-radius:8px; cursor:pointer;
+    font-weight:600; font-size:13px;
+  }
+  .controls { display:flex; gap:8px; justify-content:center; padding:10px; background:rgba(0,0,0,0.6); position:absolute; bottom:12px; left:var(--panel-w); right:12px; z-index:6000; border-radius:8px; }
+  .controls .btn { background:rgba(255,255,255,0.03); }
+
+  /* map overlay title */
+  .map-title {
+    position:absolute; left:var(--panel-w); top:8px; right:12px; text-align:center; z-index:5000;
+    pointer-events:none; color:#fff; font-weight:700; text-shadow:0 1px 2px rgba(0,0,0,0.6);
+  }
+
+  /* marker style */
+  .story-marker div { width:22px; height:22px; border-radius:50%; background:var(--accent); border:2px solid #fff; box-shadow:0 2px 6px rgba(0,0,0,0.6); }
+
+  /* responsive */
+  @media(max-width:900px){
+    #panel{ position:absolute; left:0; top:0; bottom:0; transform:translateX(-100%); transition:transform .28s ease; z-index:8000; width:85%; }
+    #panel.visible{ transform:translateX(0); }
+    .map-title{ left:12px; right:12px; }
+    .controls { left:12px; right:12px; bottom:12px; }
+  }
 </style>
 </head>
 <body>
-<header>
-    <h1>🌿 Echoes of the Land</h1>
-    <p>A Story Map of Indigenous Peoples' Journeys</p>
-</header>
+  <div class="container">
+    <aside id="panel" aria-label="Story panel">
+      <header class="app-header">
+        <div>
+          <h1>🌿 Echoes of the Land</h1>
+          <p>Indigenous journeys, earthworks, and contested histories — interactive storymap</p>
+        </div>
+      </header>
 
-<div id="map-title-overlay">Earliest North American Migrations</div>
+      <!-- Chapter list will be inserted here programmatically for convenience -->
+      <div id="chapters"></div>
 
-<audio id="powWowAudio" loop preload="auto">
+      <div style="margin-top:12px;display:flex;gap:8px;">
+        <button id="downloadPDF" class="btn">Download Chapter PDF</button>
+        <button id="toggleNarration" class="btn">Toggle Narration</button>
+      </div>
+
+      <div style="margin-top:10px;color:var(--muted);font-size:12px;">
+        Tip: Click a chapter to fly the map; use Play/Next to step through chapters. Add a powwow drum MP3 at <code>audio/powwow_drum.mp3</code> if you want ambient audio.
+      </div>
+    </aside>
+
+    <main id="map" role="application">
+      <div class="map-title" id="mapTitle">Earliest North American Migrations</div>
+      <!-- Map appears here -->
+    </main>
+  </div>
+
+  <!-- Controls overlay (floating above map) -->
+  <div class="controls" id="controls">
+    <button id="playNext" class="btn">Play / Next</button>
+    <button id="reservationToggle" class="btn">Show Reservations</button>
+    <button id="trailToggle" class="btn">Show Trail of Tears</button>
+    <button id="tribalToggle" class="btn">Hide Tribes (574)</button>
+    <button id="zoomMN" class="btn">Zoom to MN</button>
+    <button id="panelToggle" class="btn">Show Story</button>
+    <button id="resetMap" class="btn">Reset Map</button>
+  </div>
+
+  <!-- Optional audio (commented out if you don't have the file) -->
+  <!--
+  Place your powwow file at /audio/powwow_drum.mp3 relative to this html file.
+  <audio id="powWowAudio" loop preload="auto">
     <source src="audio/powwow_drum.mp3" type="audio/mpeg">
-</audio>
-
-<div id="main-app">
-    <div id="storyPanel">
-        <h2 id="storyEra"></h2>
-        <p id="storyYear"></p>
-        <p id="storyText"></p>
-    </div>
-    <div id="map"></div>
-</div>
-
-<div class="controls">
-    <button id="playPause">Play/Next</button>
-    <button id="reservationToggle">Show Reservations</button>
-    <button id="trailToggle">Show Trail/Route</button>
-    <button id="tribalToggle">Hide All Tribes (574)</button>
-    <button id="zoomMN">Zoom to MN</button>
-    <button id="storyToggle">Show Story</button>
-    <button id="resetMap">Reset Map</button>
-</div>
+  </audio>
+  -->
 
 <script>
+/* ============================
+   Story map — full rewritten
+   ============================ */
+
+/* ---------------------------
+   Data: story chapters (requested)
+   coords are [lat, lng]
+   --------------------------- */
 const storyChapters = [
-    { name: "Beringia Crossing", year: "~20,000 BCE", coords: [64.8, -165.0], text: "Ancestors migrate from Asia via land bridge.", mapTitle: "Earliest North American Migrations" },
-    { name: "Mississippian Culture", year: "~1000 CE", coords: [38.6, -90.1], text: "Cahokia: ancient urban center near St. Louis.", mapTitle: "Ancient Urban Centers" },
-    { name: "Ojibwe Migration Route", year: "~1400 CE", coords: [46.75, -85.5], text: "Anishinaabe migrated west along the Great Lakes.", mapTitle: "The Great Lakes Crossing" },
-    { name: "Dakota Conflict 1862", year: "1862 CE", coords: [44.75, -94.5], text: "U.S.–Dakota War due to broken treaties.", mapTitle: "The U.S.–Dakota War of 1862" },
-    { name: "Mille Lacs Band", year: "Present", coords: [46.1, -93.6], text: "Modern Tribal Sovereignty in Minnesota.", mapTitle: "Mille Lacs Band of Ojibwe" }
+  { id:'beringia', name: "Beringia Crossing", year: "~20,000 BCE", coords: [64.8, -165.0],
+    text: "Ancestors crossed the Beringia land bridge from Asia into Alaska; earliest migrations into North America.", mapTitle:"Earliest North American Migrations" },
+
+  { id:'white-sands', name: "White Sands Footprints", year: "~21,000 BCE", coords: [32.7836, -106.1516],
+    text: "White Sands, NM: ancient human footprints preserved in gypsum dunes provide early evidence of human presence in North America.", mapTitle:"White Sands: Ancient Footprints" },
+
+  { id:'south-america', name: "South America Expansion", year: "~15,000 BCE", coords: [-15.0, -70.0],
+    text: "Rapid migrations continued south, with archaeological evidence of early humans in South America well before 13,000 BCE.", mapTitle:"Early South American Presence" },
+
+  { id:'chaco', name: "Chaco Canyon", year: "~1050 CE", coords: [36.0609, -107.9619],
+    text: "Chaco Canyon: major Ancestral Puebloan center with architecture aligned to astronomy; ceremonial plazas oriented to important stars like Sirius.", mapTitle:"Chaco Canyon & Celestial Alignments" },
+
+  { id:'serpent-mound', name: "Serpent Mound (Ohio)", year: "~1070 CE", coords: [39.0253, -83.4306],
+    text: "Serpent Mound demonstrates a sophisticated understanding of solar alignments; the effigy aligns to solstice events.", mapTitle:"Serpent Mound & Solstice Alignments" },
+
+  { id:'jackson-mounds', name: "Jackson Mound Group (Ohio)", year: "~500-1300 CE", coords: [39.3, -82.98],
+    text: "Jackson Mound Group and Adena/Hopewell sites form a network of ceremonial mounds and trade corridors across the Ohio Valley.", mapTitle:"Mound Builders: Jackson Group" },
+
+  { id:'ocmulgee', name: "Ocmulgee Mounds (Georgia)", year: "~900 CE", coords: [32.8379, -83.6494],
+    text: "Ocmulgee National Monument preserves prehistoric earthworks and mounds of the Mississippian and earlier cultures.", mapTitle:"Ocmulgee Mound Complex" },
+
+  { id:'mississippian', name: "Mississippian Culture (Cahokia)", year: "~1000 CE", coords: [38.6572, -90.0530],
+    text: "Cahokia, near modern St. Louis, was a complex urban center of the Mississippian world with massive earthen mounds.", mapTitle:"Mississippian Urban Centers" },
+
+  { id:'glacial-melt', name: "Great Glacier Melt / Impact Theory", year: "~12,000 BCE", coords: [47.5, -96.0],
+    text: "Large-scale glacial melting (and hypotheses about comet/meteor impacts) produced catastrophic floods, shaping landscapes and inspiring flood myths.", mapTitle:"Glacial Melt & Great Flood" },
+
+  { id:'ojibwe', name: "Ojibwe Migration & Anishinaabe", year: "~1400 CE", coords: [46.75, -85.5],
+    text: "The Anishinaabe (Ojibwe) migrated west along the Great Lakes following prophecies like the sacred shell; language and culture continue to be revitalized.", mapTitle:"Anishinaabe Migration & Language" },
+
+  { id:'trail-of-tears', name: "Removal Era / Trail of Tears", year: "1830s CE", coords: [35.5, -85.0],
+    text: "Indian Removal and forced relocations displaced thousands; many routes are collectively remembered as the Trail of Tears.", mapTitle:"Removal Era: Trail of Tears" },
+
+  { id:'military-trails', name: "US Military Geo Trails", year: "1800s", coords: [39.5, -98.5],
+    text: "Military surveys, forts, and early transport corridors often traversed Indigenous lands and influenced boundary-making and displacement.", mapTitle:"Colonial Mapping & Military Trails" }
 ];
-const trailOfTearsData = [
-    { coords: [35.5, -83.3] }, { coords: [34.9, -85.0] },
-    { coords: [35.4, -94.4] }, { coords: [35.9, -94.9] }
-];
-const mnReservationsGeoJSON = {
-    "type": "FeatureCollection",
-    "features": [
-        { "type": "Feature", "properties": { "name": "Red Lake Nation" }, "geometry": { "type": "Polygon", "coordinates": [[[-95.3, 48.2], [-95.3, 47.8], [-94.8, 47.8], [-94.8, 48.2], [-95.3, 48.2]]] } }
-    ]
+
+/* ---------------------------
+   Placeholder GeoJSON & arrays
+   (we attempt to fetch official data, fallback to these)
+   --------------------------- */
+
+// Small embedded reservation sample (fallback)
+const fallbackReservations = {
+  "type":"FeatureCollection","features":[
+    {"type":"Feature","properties":{"name":"Bois Forte Reservation","tribe":"Bois Forte Band of Chippewa"},"geometry":{"type":"Polygon","coordinates":[[[-93.028,48.047],[-92.945,47.986],[-92.875,47.92],[-92.721,47.95],[-92.721,48.071],[-92.845,48.09],[-93.028,48.047]]]}}
+  ]
 };
-const tribalLocations574 = Array.from({ length: 50 }, (_, i) => ({
-    name: `Tribal Entity ${i + 1}`, coords: [35 + Math.random() * 10, -115 + Math.random() * 20]
-}));
 
-let map, storyMarkersLayer, reservationLayer, trailLayer, tribalDotsLayer;
-let currentChapter = 0;
+// Short fallback Trail GeoJSON (LineString) — used if fetch fails
+const fallbackTrailGeoJSON = {
+  "type":"FeatureCollection",
+  "features":[
+    {"type":"Feature","properties":{"name":"TRTE simplified"},"geometry":{"type":"LineString","coordinates":[[-83.3370,35.5019],[-84.9926,34.9654],[-88.0863,34.9392],[-94.3986,35.3853],[-94.9754,35.9189]]}}
+  ]
+};
 
-window.addEventListener('DOMContentLoaded', () => {
-    map = L.map('map', { center: [39.8, -98.5], zoom: 4 });
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; OpenStreetMap & CartoDB'
-    }).addTo(map);
-
-    storyMarkersLayer = L.layerGroup().addTo(map);
-    reservationLayer = L.layerGroup();
-    trailLayer = L.layerGroup();
-    tribalDotsLayer = L.layerGroup();
-
-    storyChapters.forEach(ch => {
-        const icon = L.divIcon({ className: 'story-marker', html: '<div>★</div>' });
-        L.marker(ch.coords, { icon }).bindPopup(`<b>${ch.name}</b><br>${ch.text}`).addTo(storyMarkersLayer);
-    });
-
-    L.geoJSON(mnReservationsGeoJSON, { style: { color: '#800080', fillOpacity: 0.3 } }).addTo(reservationLayer);
-
-    L.polyline(trailOfTearsData.map(p => p.coords), { color: '#8B0000', weight: 3, dashArray: '6,4' }).addTo(trailLayer);
-
-    tribalLocations574.forEach(d => {
-        L.circleMarker(d.coords, { radius: 3, color: '#33ff33', fillColor: '#33ff33', fillOpacity: 0.7 })
-            .bindPopup(`<b>${d.name}</b>`).addTo(tribalDotsLayer);
-    });
-    tribalDotsLayer.addTo(map);
-
-    updateStoryPanel(storyChapters[currentChapter]);
-    map.invalidateSize();
-});
-
-function updateStoryPanel(ch) {
-    document.getElementById('storyEra').textContent = ch.name;
-    document.getElementById('storyYear').textContent = ch.year;
-    document.getElementById('storyText').textContent = ch.text;
-    document.getElementById('map-title-overlay').textContent = ch.mapTitle;
-    map.flyTo(ch.coords, 6, { duration: 1.5 });
+// Placeholder tribal points (you can replace with full 574 list)
+const tribalPoints = [
+  { name:"Navajo Nation", tribe:"Diné", coords:[35.8427,-109.5218], pop:173000 },
+  { name:"Cherokee Nation HQ", tribe:"Cherokee", coords:[36.1983,-94.9822], pop:140000 },
+  // Add more or replace programmatically
+];
+for(let i=0;i<100;i++){ // create placeholders to simulate many
+  tribalPoints.push({ name:`Tribal ${i+1}`, tribe:"Various", coords:[30+Math.random()*20, -120+Math.random()*40], pop:Math.floor(Math.random()*5000) });
 }
 
-// --- Controls ---
-document.getElementById('playPause').onclick = () => {
-    currentChapter = (currentChapter + 1) % storyChapters.length;
-    updateStoryPanel(storyChapters[currentChapter]);
-};
-document.getElementById('reservationToggle').onclick = e => {
-    if (map.hasLayer(reservationLayer)) { map.removeLayer(reservationLayer); e.target.textContent = 'Show Reservations'; }
-    else { map.addLayer(reservationLayer); e.target.textContent = 'Hide Reservations'; }
-};
-document.getElementById('trailToggle').onclick = e => {
-    if (map.hasLayer(trailLayer)) { map.removeLayer(trailLayer); e.target.textContent = 'Show Trail/Route'; }
-    else { map.addLayer(trailLayer); e.target.textContent = 'Hide Trail/Route'; }
-};
-document.getElementById('tribalToggle').onclick = e => {
-    if (map.hasLayer(tribalDotsLayer)) { map.removeLayer(tribalDotsLayer); e.target.textContent = 'Show Tribes'; }
-    else { map.addLayer(tribalDotsLayer); e.target.textContent = 'Hide Tribes'; }
-};
-document.getElementById('zoomMN').onclick = () => map.fitBounds([[43.5, -97.5], [49.5, -89.0]]);
-document.getElementById('resetMap').onclick = () => map.setView([39.8, -98.5], 4);
-document.getElementById('storyToggle').onclick = () => document.getElementById('storyPanel').classList.toggle('visible');
+/* ---------------------------
+   Official endpoints to try
+   Some servers block CORS — we handle fallbacks gracefully
+   --------------------------- */
+const TIGER_RESERVATIONS_GEOJSON = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Tribal/MapServer/0/query?where=1%3D1&outFields=*&f=geojson';
+const NPS_TRAIL_OPENDATA_GEOJSON = 'https://opendata.arcgis.com/datasets/nps::trte-nht-congressionally-designated-alignment.geojson';
+
+/* ---------------------------
+   Map & layers
+   --------------------------- */
+let map;
+let storyLayer = L.layerGroup();
+let reservationLayer = L.layerGroup();
+let trailLayer = L.layerGroup();
+let tribalLayer = L.layerGroup();
+let militaryLayer = L.layerGroup();
+let glacialLayer = L.layerGroup();
+let currentChapterIndex = 0;
+let narrationOn = false;
+
+/* ---------------------------
+   Initialize map after DOM loaded
+   --------------------------- */
+window.addEventListener('DOMContentLoaded', async () => {
+  // create map
+  map = L.map('map', { center:[39.8,-98.5], zoom:4, minZoom:2 });
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '&copy; OpenStreetMap & CARTO'
+  }).addTo(map);
+
+  // populate static layers
+  populateStoryMarkers();
+  populateTribalPoints();
+
+  // try to fetch official reservations and trail
+  await tryLoadReservations();
+  await tryLoadTrail();
+
+  // add glacial & military placeholder layers (not visible by default)
+  addGlacialLayer();
+  addMilitaryTrails();
+
+  // show first chapter
+  renderChaptersUI();
+  updateToChapter(0);
+
+  // ensure map draws correctly
+  setTimeout(()=>map.invalidateSize(), 250);
+});
+
+/* ---------------------------
+   Story markers (chapter-linked)
+   --------------------------- */
+function populateStoryMarkers(){
+  storyLayer.clearLayers();
+  const icon = L.divIcon({ className:'story-marker', iconSize:[22,22], html:'<div></div>' });
+  storyChapters.forEach((ch, i) => {
+    const m = L.marker(ch.coords, { icon }).bindPopup(`<b>${ch.name}</b><br>${ch.text}`);
+    m.chapterIndex = i;
+    m.on('click', () => { updateToChapter(i); });
+    storyLayer.addLayer(m);
+  });
+  storyLayer.addTo(map);
+}
+
+/* ---------------------------
+   Tribal points
+   --------------------------- */
+function populateTribalPoints(){
+  tribalLayer.clearLayers();
+  tribalPoints.forEach(p=>{
+    const c = L.circleMarker(p.coords, { radius:3, color:'#33ff33', fillColor:'#33ff33', fillOpacity:0.8 })
+      .bindPopup(`<b>${p.name}</b><br>Tribe: ${p.tribe}<br>Pop: ${p.pop?.toLocaleString?.()||'N/A'}`);
+    tribalLayer.addLayer(c);
+  });
+  // add by default
+  tribalLayer.addTo(map);
+}
+
+/* ---------------------------
+   Try loading reservations from TIGER (Census)
+   Falls back to embedded sample
+   --------------------------- */
+async function tryLoadReservations(){
+  try {
+    console.info('Fetching reservations from TIGERweb...');
+    const resp = await fetch(TIGER_RESERVATIONS_GEOJSON);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const geo = await resp.json();
+    if(geo && geo.type === 'FeatureCollection'){
+      L.geoJSON(geo, {
+        style: { color:'#800080', weight:1.6, fillOpacity:0.18 },
+        onEachFeature: (f,l) => {
+          const p = f.properties||{};
+          l.bindPopup(`<strong>${p.NAME||p.name||'Reservation'}</strong><br>${p.TRIBALNAME||p.tribe||''}`);
+        }
+      }).addTo(reservationLayer);
+      console.info('Reservations loaded from TIGERweb.');
+      return;
+    }
+    throw new Error('Invalid GeoJSON');
+  } catch(err){
+    console.warn('Could not load TIGER reservations — using fallback. Error:', err);
+    L.geoJSON(fallbackReservations, {
+      style: { color:'#800080', weight:2, fillOpacity:0.2 },
+      onEachFeature: (f,l) => l.bindPopup(`<strong>${f.properties.name}</strong><br>${f.properties.tribe||''}`)
+    }).addTo(reservationLayer);
+  }
+}
+
+/* ---------------------------
+   Try loading NPS Trail GeoJSON
+   Falls back to embedded line stops
+   --------------------------- */
+async function tryLoadTrail(){
+  try {
+    console.info('Fetching NPS Trail GeoJSON...');
+    const resp = await fetch(NPS_TRAIL_OPENDATA_GEOJSON);
+    if(!resp.ok) throw new Error('HTTP ' + resp.status);
+    const geo = await resp.json();
+    if(geo && geo.type === 'FeatureCollection'){
+      L.geoJSON(geo, { style:{ color:'#8B0000', weight:3, dashArray:'10,6' } }).addTo(trailLayer);
+      console.info('Trail loaded from NPS OpenData.');
+      return;
+    }
+    throw new Error('Invalid GeoJSON');
+  } catch(err){
+    console.warn('Could not fetch NPS trail — using fallback. Error:', err);
+    // fallback: draw simple trail and stops
+    const coords = fallbackTrailGeoJSON.features[0].geometry.coordinates.map(c=>[c[1], c[0]]);
+    L.polyline(coords, { color:'#8B0000', weight:4, dashArray:'10,6' }).addTo(trailLayer);
+    // add stops at the GeoJSON points
+    fallbackTrailGeoJSON.features[0].geometry.coordinates.forEach((c, idx)=>{
+      const latlng=[c[1], c[0]];
+      L.circleMarker(latlng, { radius:5, color:'#8B0000', fillColor:'#FF4500', fillOpacity:1 })
+        .bindPopup(`<strong>Trail stop ${idx+1}</strong>`).addTo(trailLayer);
+    });
+  }
+}
+
+/* ---------------------------
+   Glacial & military placeholder layers
+   --------------------------- */
+function addGlacialLayer(){
+  // big approximate circle showing impact/flood area
+  const circle = L.circle([47.5,-96.0], { radius:700000, color:'#FFA500', fillOpacity:0.06, weight:1 }).bindPopup('Glacial melt / impact zone (hypothesis)');
+  glacialLayer.addLayer(circle);
+}
+function addMilitaryTrails(){
+  const line = L.polyline([[39, -96],[40,-100],[41,-105]], { color:'#ff4444', weight:2, opacity:0.6, dashArray:'4,6' }).bindPopup('Historic military survey trails (placeholder)');
+  militaryLayer.addLayer(line);
+}
+
+/* ---------------------------
+   Render chapter list UI on left panel
+   --------------------------- */
+function renderChaptersUI(){
+  const container = document.getElementById('chapters');
+  container.innerHTML = '';
+  storyChapters.forEach((ch, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'chapter';
+    el.innerHTML = `<h3>${ch.name}</h3><div class="year">${ch.year}</div><p>${ch.text}</p>`;
+    el.addEventListener('click', ()=>{ updateToChapter(idx); });
+    container.appendChild(el);
+  });
+}
+
+/* ---------------------------
+   Update map & panel to a chapter
+   --------------------------- */
+function updateToChapter(idx){
+  if(idx<0 || idx>=storyChapters.length) return;
+  currentChapterIndex = idx;
+  const ch = storyChapters[idx];
+  document.getElementById('mapTitle').textContent = ch.mapTitle || ch.name;
+  // fly
+  map.flyTo(ch.coords, 5.8, { duration: 1.4 });
+  // highlight marker popup
+  storyLayer.eachLayer(layer=>{
+    if(layer.chapterIndex === idx){
+      layer.openPopup();
+    } else {
+      layer.closePopup();
+    }
+  });
+  // visually mark active chapter in panel
+  const chapters = document.querySelectorAll('#chapters .chapter');
+  chapters.forEach((el,i)=> el.style.opacity = (i===idx? '1.0':'0.6'));
+}
+
+/* ---------------------------
+   Controls: buttons behavior
+   --------------------------- */
+document.getElementById('playNext').addEventListener('click', ()=>{
+  const next = (currentChapterIndex + 1) % storyChapters.length;
+  updateToChapter(next);
+  // start narration on user click if enabled
+  if(narrationOn) speakChapter(storyChapters[next]);
+});
+document.getElementById('panelToggle').addEventListener('click', ()=>{
+  const p = document.getElementById('panel');
+  p.classList.toggle('visible');
+  document.getElementById('panelToggle').textContent = p.classList.contains('visible') ? 'Hide Story' : 'Show Story';
+});
+
+document.getElementById('reservationToggle').addEventListener('click', (e)=>{
+  if(map.hasLayer(reservationLayer)){ map.removeLayer(reservationLayer); e.target.textContent='Show Reservations'; }
+  else { map.addLayer(reservationLayer); e.target.textContent='Hide Reservations'; }
+});
+document.getElementById('trailToggle').addEventListener('click', (e)=>{
+  if(map.hasLayer(trailLayer)){ map.removeLayer(trailLayer); e.target.textContent='Show Trail of Tears'; }
+  else { map.addLayer(trailLayer); e.target.textContent='Hide Trail of Tears'; }
+});
+document.getElementById('tribalToggle').addEventListener('click', (e)=>{
+  if(map.hasLayer(tribalLayer)){ map.removeLayer(tribalLayer); e.target.textContent='Show Tribes (574)'; }
+  else { map.addLayer(tribalLayer); e.target.textContent='Hide Tribes (574)'; }
+});
+document.getElementById('zoomMN').addEventListener('click', ()=>{
+  map.fitBounds([[43.5,-97.5],[49.5,-89.0]]);
+});
+document.getElementById('resetMap').addEventListener('click', ()=>{
+  map.setView([39.8,-98.5],4);
+  updateToChapter(0);
+});
+
+/* ---------------------------
+   Narration (Web Speech API)
+   Toggle and speak
+   --------------------------- */
+document.getElementById('toggleNarration').addEventListener('click', ()=>{
+  narrationOn = !narrationOn;
+  document.getElementById('toggleNarration').textContent = narrationOn ? 'Narration: ON' : 'Narration: OFF';
+  if(narrationOn) speakChapter(storyChapters[currentChapterIndex]);
+});
+function speakChapter(ch){
+  if(!('speechSynthesis' in window) || !narrationOn) return;
+  const synth = window.speechSynthesis;
+  synth.cancel();
+  const text = `${ch.name}. ${ch.year}. ${stripHTML(ch.text)}`;
+  const utt = new SpeechSynthesisUtterance(text);
+  utt.rate = 1.0; utt.pitch = 1.0; utt.lang = 'en-US';
+  synth.speak(utt);
+}
+function stripHTML(s){ const d = document.createElement('div'); d.innerHTML = s; return d.textContent || d.innerText || ''; }
+
+/* ---------------------------
+   Download current chapter as PDF using jsPDF
+   --------------------------- */
+document.getElementById('downloadPDF').addEventListener('click', async ()=>{
+  const { jsPDF } = window.jspdf;
+  const ch = storyChapters[currentChapterIndex];
+  const doc = new jsPDF({ unit:'pt', format:'letter' });
+  const margin = 40;
+  doc.setFontSize(18); doc.setFont('helvetica','bold'); doc.text(ch.name, margin, 60);
+  doc.setFontSize(12); doc.setFont('helvetica','normal'); doc.text(`Era / Year: ${ch.year}`, margin, 86);
+  const lines = doc.splitTextToSize(stripHTML(ch.text), 520);
+  doc.text(lines, margin, 110);
+  doc.setTextColor(0,102,153); doc.textWithLink('Learn more (map)', margin, 110 + lines.length*14 + 10, { url: window.location.href });
+  doc.save(`${ch.name.replace(/\s+/g,'_')}_summary.pdf`);
+});
+
+/* ---------------------------
+   Helper: ensure layers exist by default (no auto add for reservation/trail)
+   --------------------------- */
+map && map.invalidateSize && map.invalidateSize();
+
+/* End of script */
 </script>
 </body>
 </html>
