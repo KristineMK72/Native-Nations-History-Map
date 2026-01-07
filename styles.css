@@ -1,376 +1,175 @@
-:root{
-  --bg:#070a10;
-
-  --panel:rgba(12,16,26,.92);
-  --panel2:rgba(15,20,33,.96);
-
-  --text:rgba(245,247,255,.92);
-  --muted:rgba(245,247,255,.62);
-  --border:rgba(255,255,255,.08);
-
-  --shadow:0 18px 55px rgba(0,0,0,.55);
-  --radius:18px;
-
-  --tribes:#63ff8f;
-  --ojibwe:#00e5ff;
-  --tears:#ff3b3b;
-  --reserv:#c8b46e;
-
+:root {
+  --bg: #070a10;
+  --panel: rgba(12, 16, 26, .92);
+  --panel2: rgba(15, 20, 33, .96);
+  --text: rgba(245, 247, 255, .92);
+  --muted: rgba(245, 247, 255, .62);
+  --border: rgba(255, 255, 255, .08);
+  --shadow: 0 18px 55px rgba(0, 0, 0, .55);
+  --radius: 18px;
+  --tribes: #63ff8f;
+  --ojibwe: #00e5ff;
+  --tears: #ff3b3b;
+  --reserv: #c8b46e;
   --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
 }
 
-*{box-sizing:border-box}
-html,body{
-  height:100%;
-  margin:0;
-  background:var(--bg);
-  color:var(--text);
-  font-family:var(--font);
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  /* Prevents unwanted scrolling on mobile */
+  overflow: hidden; 
 }
 
-a{color:rgba(99,255,143,.92)}
-a:hover{opacity:.9}
-
 /* ===========================
-   LAYOUT (DESKTOP/TABLET)
+   LAYOUT (DESKTOP)
 =========================== */
-#app{
-  height:100vh;
-  display:grid;
+#app {
+  height: 100vh;
+  display: grid;
   grid-template-columns: 420px 1fr;
+  width: 100vw;
 }
 
-#story{
-  height:100vh;
-  overflow:hidden;
-  background:linear-gradient(180deg, rgba(12,16,26,.98), rgba(10,14,24,.92));
-  border-right:1px solid var(--border);
-  display:flex;
-  flex-direction:column;
-  min-width:320px;
-  max-width:520px;
+#story {
+  height: 100vh;
+  overflow: hidden;
+  background: linear-gradient(180deg, rgba(12, 16, 26, .98), rgba(10, 14, 24, .92));
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
 }
 
-#mapWrap{
-  position:relative;
-  height:100vh;
-  min-height:100vh;
-  background:var(--bg);
+#mapWrap {
+  position: relative;
+  height: 100vh;
+  width: 100%;
+  background: var(--bg);
 }
 
-#map{
-  position:absolute;
-  inset:0;
-}
-
-/* ===========================
-   STORY HEADER / FOOTER
-=========================== */
-.storyHeader{
-  padding:16px 16px 10px;
-  border-bottom:1px solid var(--border);
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.titleBlock h1{
-  margin:0;
-  font-size:1.1rem;
-  letter-spacing:.4px;
-}
-
-.subtitle{
-  margin:6px 0 0;
-  color:var(--muted);
-  font-size:.9rem;
-}
-
-.headerActions{display:flex;gap:8px}
-
-.chip{
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.04);
-  color:var(--text);
-  padding:8px 10px;
-  border-radius:999px;
-  cursor:pointer;
-}
-.chip:hover{background:rgba(255,255,255,.08)}
-.chip:active{transform:translateY(1px)}
-
-#storyBody{
-  overflow:auto;
-  padding:12px 14px 18px;
-  -webkit-overflow-scrolling: touch;
-}
-
-.storyFooter{
-  padding:10px 14px 14px;
-  border-top:1px solid var(--border);
-  color:var(--muted);
-  font-size:.85rem;
+#map {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 1; /* Ensures map is below HUD but above wrap */
 }
 
 /* ===========================
-   CHAPTER STEPS
+   LEAFLET FIXES (CRITICAL)
 =========================== */
-.step{
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.03);
-  border-radius:var(--radius);
-  padding:14px;
-  margin:12px 0;
-  box-shadow:0 8px 26px rgba(0,0,0,.28);
-  transition:transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease;
+/* Fixes zoom buttons and attribution being broken by border-box */
+.leaflet-control-container * {
+  box-sizing: content-box;
 }
 
-.step.is-active{
-  border-color: rgba(99,255,143,.45);
-  box-shadow:0 12px 42px rgba(99,255,143,.10);
-  transform:translateY(-1px);
-}
-
-.step h2{margin:0 0 6px;font-size:1.02rem}
-.step .meta{color:var(--muted);font-size:.86rem;margin-bottom:10px}
-.step p{margin:0;color:rgba(245,247,255,.84);line-height:1.45}
-
-.step .sources{
-  margin-top:10px;
-  font-size:.85rem;
-  color:var(--muted);
-}
-.step .sources a{color:rgba(99,255,143,.9)}
-
-/* ===========================
-   HUD (OVER MAP)
-=========================== */
-#hud{
-  position:absolute;
-  left:14px;
-  right:14px;
-  bottom:14px;
-  z-index:500;
-  display:grid;
-  gap:10px;
-  pointer-events:none;
-}
-
-.hudRow{
-  pointer-events:auto;
-  display:flex;
-  align-items:center;
-  gap:10px;
-  background:var(--panel);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:10px;
-  box-shadow:var(--shadow);
-  backdrop-filter:blur(10px);
-}
-
-.hudBtn{
-  width:42px;
-  height:42px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.06);
-  color:var(--text);
-  cursor:pointer;
-  touch-action: manipulation;
-}
-.hudBtn:hover{background:rgba(255,255,255,.11)}
-.hudBtn:active{transform:translateY(1px)}
-
-.hudTitle{flex:1;min-width:0}
-#hudChapterTitle{
-  font-weight:600;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-#hudChapterMeta{color:var(--muted);font-size:.86rem;margin-top:2px}
-
-.transportBtn{
-  width:54px;
-  height:44px;
-  border-radius:14px;
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.06);
-  color:var(--text);
-  cursor:pointer;
-  touch-action: manipulation;
-}
-.transportBtn:hover{background:rgba(255,255,255,.11)}
-.transportBtn:active{transform:translateY(1px)}
-
-.progress{
-  flex:1;
-  display:grid;
-  gap:6px;
-  margin-left:6px;
-}
-#progressText{color:var(--muted);font-size:.86rem}
-.progressBar{
-  height:8px;
-  border-radius:999px;
-  background:rgba(255,255,255,.10);
-  overflow:hidden;
-}
-#progressFill{
-  height:100%;
-  width:0%;
-  background:rgba(99,255,143,.85);
-  transition:width 260ms ease;
+/* Fixes gray background when map tiles haven't loaded */
+.leaflet-container {
+  background-color: var(--bg) !important;
 }
 
 /* ===========================
-   POPOVER PANELS
+   STORY COMPONENTS
 =========================== */
-.panel{
-  pointer-events:auto;
-  position:absolute;
-  right:0;
-  bottom:108px;
-  width:260px;
-  background:var(--panel2);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  padding:12px;
-  box-shadow:var(--shadow);
+.storyHeader {
+  padding: 16px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
-.panelTitle{font-weight:700;margin-bottom:10px}
-.panelFooter{margin-top:10px;color:var(--muted)}
-.hidden{display:none}
-
-.toggle{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  padding:7px 0;
-}
-.toggle input{transform:scale(1.1)}
-
-.legendItem{
-  display:flex;
-  gap:10px;
-  align-items:center;
-  padding:6px 0;
-}
-.swatch{
-  width:18px;
-  height:10px;
-  border-radius:999px;
-  display:inline-block;
-}
-.swatchTribes{background:var(--tribes)}
-.swatchReservations{background:rgba(200,180,110,.65)}
-.swatchTears{background:var(--tears)}
-.swatchOjibwe{background:var(--ojibwe)}
-
-/* ===========================
-   MODAL
-=========================== */
-.modalBackdrop{
-  position:absolute;
-  inset:0;
-  background:rgba(0,0,0,.55);
-  z-index:700;
+#storyBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
 
-.modal{
-  position:absolute;
-  left:50%;
-  top:18%;
-  transform:translateX(-50%);
-  width:min(560px, calc(100% - 28px));
-  background:var(--panel2);
-  border:1px solid var(--border);
-  border-radius:var(--radius);
-  z-index:800;
-  box-shadow:var(--shadow);
+.step {
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, .03);
+  border-radius: var(--radius);
+  padding: 16px;
+  margin-bottom: 20px;
+  transition: all 0.3s ease;
 }
 
-.modalHeader{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:12px 14px;
-  border-bottom:1px solid var(--border);
-}
-.modalTitle{font-weight:700}
-.modalClose{
-  border:1px solid var(--border);
-  background:rgba(255,255,255,.05);
-  color:var(--text);
-  border-radius:12px;
-  width:40px;
-  height:36px;
-  cursor:pointer;
-}
-.modalBody{
-  padding:14px;
-  color:rgba(245,247,255,.86);
-  line-height:1.5;
+.step.is-active {
+  border-color: var(--tribes);
+  background: rgba(99, 255, 143, 0.05);
+  box-shadow: 0 0 20px rgba(99, 255, 143, 0.1);
 }
 
 /* ===========================
-   MOBILE (MAP FULL SCREEN + DRAWER)
+   HUD & PANELS
 =========================== */
-@media (max-width: 980px){
-  #app{
-    position:relative;
-    height:100vh;
+#hud {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000; /* Must be high to sit on top of Leaflet */
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.hudRow {
+  pointer-events: auto;
+  background: var(--panel);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.hidden { display: none !important; }
+
+.panel {
+  pointer-events: auto;
+  position: absolute;
+  right: 0;
+  bottom: 110px;
+  width: 280px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  backdrop-filter: blur(12px);
+}
+
+/* ===========================
+   MOBILE RESPONSIVENESS
+=========================== */
+@media (max-width: 980px) {
+  #app {
     grid-template-columns: 1fr;
   }
 
-  /* Map ALWAYS fills the screen */
-  #mapWrap{
-    position:fixed;
-    inset:0;
-    height:100vh;
-    z-index:1;
+  #story {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 50%;
+    z-index: 2000;
+    transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* Story becomes a bottom drawer over the map */
-  #story{
-    position:fixed;
-    z-index:650;
-    height:62%;
-    width:100%;
-    bottom:0;
-    transform:translateY(100%);
-    transition:transform 240ms ease;
-    border-right:none;
-    border-top:1px solid var(--border);
-  }
-  #story.open{transform:translateY(0%)}
-
-  /* HUD stays above map and below story drawer */
-  #hud{
-    position:fixed;
-    left:12px;
-    right:12px;
-    bottom:12px;
-    z-index:600;
-  }
-
-  .panel{
-    right:0;
-    bottom:112px;
-    width:min(320px, calc(100vw - 24px));
+  #story.open {
+    transform: translateY(0);
   }
 }
-
-/* ===========================
-   LEAFLET POPUP TWEAKS
-=========================== */
-.leaflet-popup-content-wrapper{
-  background:rgba(15,20,33,.96);
-  color:var(--text);
-  border:1px solid rgba(255,255,255,.10);
-  box-shadow:0 18px 55px rgba(0,0,0,.55);
-}
-.leaflet-popup-tip{background:rgba(15,20,33,.96)}
