@@ -15,17 +15,32 @@ const els = {
   progressFill: $("progressFill"),
 };
 
-let map;
-let trailsLayer, tribesLayer, placesLayer;
+let map = null;
+let trailsLayer = null;
+let tribesLayer = null;
+let placesLayer = null;
+
 let activeChapterIndex = 0;
 let lastChapterId = null;
 
-// Optional highlighting if TRAILS objects have ids
+// chapter nav lockout so scroll observer doesn't "fight" button/tap navigation
+let ignoreScrollUntil = 0;
+
+// For highlighting specific trails by id
 let trailPolylinesById = new Map();
 
-/* ---------------------------
-   Small helpers
-----------------------------*/
+/* =========================================================
+   Utilities
+========================================================= */
+function escapeHtml(s = "") {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
 function setText(el, value) {
   if (el) el.textContent = value;
 }
@@ -46,9 +61,9 @@ function safeMapInvalidate() {
   setTimeout(() => map.invalidateSize(), 700);
 }
 
-/* ---------------------------
-   Layer visibility + highlights
-----------------------------*/
+/* =========================================================
+   Layer visibility + highlighting
+========================================================= */
 function setLayerVisible(layer, visible) {
   if (!map || !layer) return;
   try {
@@ -62,35 +77,35 @@ function setLayerVisible(layer, visible) {
 
 function clearTrailHighlights() {
   for (const poly of trailPolylinesById.values()) {
-    poly.setStyle({ weight: 4, opacity: 0.8 });
+    poly.setStyle({ weight: poly.__baseWeight ?? 4, opacity: 0.8 });
   }
 }
 
-function highlightTrails(ids) {
+function highlightTrails(ids = []) {
+  // Dim all
   for (const poly of trailPolylinesById.values()) {
-    poly.setStyle({ weight: 4, opacity: 0.25 });
+    poly.setStyle({ weight: poly.__baseWeight ?? 4, opacity: 0.2 });
   }
+  // Emphasize selected
   for (const id of ids) {
     const poly = trailPolylinesById.get(id);
-    if (poly) poly.setStyle({ weight: 7, opacity: 0.95 });
+    if (poly) poly.setStyle({ weight: (poly.__baseWeight ?? 4) + 3, opacity: 0.95 });
   }
 }
 
 function applyChapterLayers(chapter) {
-  // Because chapters ALWAYS define layers in our design,
-  // the experience is consistent and intentional.
-  const l = chapter.layers || {};
+  const l = chapter?.layers || {};
   setLayerVisible(trailsLayer, !!l.trails);
   setLayerVisible(tribesLayer, !!l.tribes);
   setLayerVisible(placesLayer, !!l.places);
 
-  if (chapter.highlight?.trailIds) highlightTrails(chapter.highlight.trailIds);
+  if (chapter?.highlight?.trailIds?.length) highlightTrails(chapter.highlight.trailIds);
   else clearTrailHighlights();
 }
 
-/* ---------------------------
-   HUD + chapter navigation
-----------------------------*/
+/* =========================================================
+   HUD + navigation
+========================================================= */
 function updateHUD() {
   const c = CHAPTERS[activeChapterIndex];
   setText(els.hudChapterTitle, c?.title ?? "Chapter");
@@ -98,40 +113,56 @@ function updateHUD() {
   setWidth(els.progressFill, ((activeChapterIndex + 1) / CHAPTERS.length) * 100);
 }
 
-function goToChapter(idx, { animate = true } = {}) {
+function scrollStepIntoView(idx) {
+  const c = CHAPTERS[idx];
+  const stepEl = document.querySelector(`.step[data-chapter="${c.id}"]`);
+  if (!stepEl || !els.storyBody) return;
+
+  // Keep scroll observer from immediately overriding manual nav
+  ignoreScrollUntil = Date.now() + 900;
+
+  // Scroll within the story panel, not the whole page
+  stepEl.scrollIntoView({ behavior: "smooth", block: "center" });
+  setActiveStep(stepEl);
+}
+
+function goToChapter(idx, { animate = true, scroll = false } = {}) {
   activeChapterIndex = Math.max(0, Math.min(CHAPTERS.length - 1, idx));
   const c = CHAPTERS[activeChapterIndex];
 
   updateHUD();
   applyChapterLayers(c);
 
-  if (!map || !c?.view?.center) return;
-  const zoom = typeof c.view.zoom === "number" ? c.view.zoom : map.getZoom();
+  if (map && c?.view?.center) {
+    const zoom = typeof c.view.zoom === "number" ? c.view.zoom : map.getZoom();
+    if (animate) map.flyTo(c.view.center, zoom, { duration: 1.8 });
+    else map.setView(c.view.center, zoom);
+    setTimeout(() => map && map.invalidateSize(), 150);
+  }
 
-  if (animate) map.flyTo(c.view.center, zoom, { duration: 1.8 });
-  else map.setView(c.view.center, zoom);
+  if (scroll) scrollStepIntoView(activeChapterIndex);
 }
 
 function onChapterEnter(chapterId) {
-  if (chapterId === lastChapterId) return;
-  lastChapterId = chapterId;
+  if (Date.now() < ignoreScrollUntil) return;
+  if (!chapterId || chapterId === lastChapterId) return;
 
+  lastChapterId = chapterId;
   const idx = CHAPTERS.findIndex((c) => c.id === chapterId);
   if (idx === -1) return;
 
   const stepEl = document.querySelector(`.step[data-chapter="${chapterId}"]`);
   setActiveStep(stepEl);
-  goToChapter(idx);
+
+  goToChapter(idx, { animate: true, scroll: false });
 }
 
-/* ---------------------------
+/* =========================================================
    Scroll-driven chapters
-----------------------------*/
+========================================================= */
 function setupScrollChapters() {
   const steps = Array.from(document.querySelectorAll(".step"));
   if (!steps.length) return;
-
-  const root = els.storyBody || null;
 
   const io = new IntersectionObserver(
     (entries) => {
@@ -139,12 +170,11 @@ function setupScrollChapters() {
         .filter((e) => e.isIntersecting)
         .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
 
-      if (visible?.target?.dataset?.chapter) {
-        onChapterEnter(visible.target.dataset.chapter);
-      }
+      const chapterId = visible?.target?.dataset?.chapter;
+      if (chapterId) onChapterEnter(chapterId);
     },
     {
-      root,
+      root: els.storyBody || null,
       threshold: [0.25, 0.5, 0.75],
       rootMargin: "-40% 0px -40% 0px",
     }
@@ -153,9 +183,37 @@ function setupScrollChapters() {
   steps.forEach((s) => io.observe(s));
 }
 
-/* ---------------------------
+/* =========================================================
+   Popups
+========================================================= */
+function buildTrailPopup(t) {
+  const name = t?.name ? escapeHtml(t.name) : "Trail";
+  const typeLabel = t?.typeLabel ? escapeHtml(t.typeLabel) : "";
+  const certainty = t?.certainty ? escapeHtml(t.certainty) : "";
+
+  const typeLine = typeLabel
+    ? `<div style="opacity:.85; font-size:12px; margin-top:4px;">Type: ${typeLabel}</div>`
+    : "";
+
+  const certaintyLine = certainty
+    ? `<div style="opacity:.7; font-size:12px;">Certainty: ${certainty}</div>`
+    : "";
+
+  return `
+    <div style="min-width: 220px;">
+      <strong>${name}</strong>
+      ${typeLine}
+      ${certaintyLine}
+      <div style="opacity:.7; font-size:12px; margin-top:6px;">
+        Routes are simplified for educational context.
+      </div>
+    </div>
+  `;
+}
+
+/* =========================================================
    Map + layers
-----------------------------*/
+========================================================= */
 function setupLayers() {
   // Trails
   trailsLayer = L.layerGroup();
@@ -164,16 +222,18 @@ function setupLayers() {
   for (const t of TRAILS) {
     if (!t?.coords?.length) continue;
 
+    const baseWeight = typeof t.weight === "number" ? t.weight : 4;
+
     const poly = L.polyline(t.coords, {
       color: t.color || "#5dade2",
-      weight: 4,
+      weight: baseWeight,
       opacity: 0.8,
-    });
+    }).addTo(trailsLayer);
 
-    if (t.name) poly.bindPopup(`<strong>${t.name}</strong>`);
-    poly.addTo(trailsLayer);
+    poly.__baseWeight = baseWeight;
 
     if (t.id) trailPolylinesById.set(t.id, poly);
+    if (t.name) poly.bindPopup(buildTrailPopup(t));
   }
   trailsLayer.addTo(map);
 
@@ -182,6 +242,9 @@ function setupLayers() {
   for (const p of PLACES) {
     if (typeof p?.lat !== "number" || typeof p?.lng !== "number") continue;
 
+    const name = escapeHtml(p.name ?? "Place");
+    const body = escapeHtml(p.body ?? "");
+
     L.circleMarker([p.lat, p.lng], {
       radius: 7,
       fillColor: "#ff9f43",
@@ -189,7 +252,7 @@ function setupLayers() {
       weight: 2,
       fillOpacity: 0.9,
     })
-      .bindPopup(`<strong>${p.name ?? "Place"}</strong><p>${p.body ?? ""}</p>`)
+      .bindPopup(`<strong>${name}</strong><p>${body}</p>`)
       .addTo(placesLayer);
   }
   placesLayer.addTo(map);
@@ -201,6 +264,8 @@ function setupLayers() {
   for (const tr of TRIBES) {
     if (typeof tr?.lat !== "number" || typeof tr?.lng !== "number") continue;
 
+    const name = escapeHtml(tr.name ?? "Nation / Community");
+
     L.circleMarker([tr.lat, tr.lng], {
       radius: 5,
       fillColor: "#63ff8f",
@@ -208,7 +273,7 @@ function setupLayers() {
       weight: 1,
       fillOpacity: 0.8,
     })
-      .bindPopup(`<strong>${tr.name ?? "Nation / Community"}</strong>`)
+      .bindPopup(`<strong>${name}</strong>`)
       .addTo(tribesLayer);
   }
   tribesLayer.addTo(map);
@@ -219,12 +284,14 @@ function initMap() {
     console.error("Leaflet not loaded. Ensure leaflet.js loads before app.js.");
     return;
   }
-  if (!$("map")) {
+
+  const mapEl = $("map");
+  if (!mapEl) {
     console.error("Missing #map element in HTML.");
     return;
   }
 
-  map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([39.5, -98.35], 4);
+  map = L.map(mapEl, { zoomControl: false, preferCanvas: true }).setView([39.5, -98.35], 4);
 
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     attribution: "&copy; CARTO",
@@ -233,28 +300,37 @@ function initMap() {
   setupLayers();
   safeMapInvalidate();
 
-  // Start at Chapter 1 (Begin) with no animation
-  goToChapter(0, { animate: false });
+  // Start at first chapter (no animation)
+  goToChapter(0, { animate: false, scroll: true });
 
-  // Keep Leaflet happy on mobile rotation/resizes
   window.addEventListener("resize", safeMapInvalidate);
   window.addEventListener("orientationchange", () => setTimeout(safeMapInvalidate, 350));
 }
 
-/* ---------------------------
+/* =========================================================
    Render story + boot
-----------------------------*/
+========================================================= */
 function renderStory() {
   if (!els.storyBody) return;
 
   els.storyBody.innerHTML = CHAPTERS.map(
     (c) => `
       <section class="step" data-chapter="${c.id}">
-        <h2>${c.title}</h2>
-        <p>${String(c.body).trim()}</p>
+        <h2>${escapeHtml(c.title)}</h2>
+        <p>${escapeHtml(String(c.body).trim()).replaceAll("\n", "<br>")}</p>
       </section>
     `
   ).join("");
+
+  // Tap/click a chapter card to jump
+  document.querySelectorAll(".step").forEach((stepEl) => {
+    stepEl.style.cursor = "pointer";
+    stepEl.addEventListener("click", () => {
+      const id = stepEl.dataset.chapter;
+      const idx = CHAPTERS.findIndex((c) => c.id === id);
+      if (idx !== -1) goToChapter(idx, { animate: true, scroll: true });
+    });
+  });
 }
 
 function boot() {
@@ -266,8 +342,8 @@ function boot() {
   renderStory();
   setupScrollChapters();
 
-  if (els.btnNext) els.btnNext.onclick = () => goToChapter(activeChapterIndex + 1);
-  if (els.btnPrev) els.btnPrev.onclick = () => goToChapter(activeChapterIndex - 1);
+  if (els.btnNext) els.btnNext.onclick = () => goToChapter(activeChapterIndex + 1, { animate: true, scroll: true });
+  if (els.btnPrev) els.btnPrev.onclick = () => goToChapter(activeChapterIndex - 1, { animate: true, scroll: true });
 
   // Let layout paint before Leaflet measures size
   setTimeout(initMap, 180);
