@@ -20,20 +20,61 @@ html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-famil
 a{color:rgba(99,255,143,.92)}
 a:hover{opacity:.9}
 
-/* You can keep your layout — these styles just enhance common story-map pieces */
-#map{position:absolute;inset:0}
-#mapWrap{position:relative;height:100%}
-
-/* Story panel */
+/* ✅ CRITICAL: full-height desktop layout */
+#app{
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+}
 #story{
+  height: 100vh;
+  overflow: hidden;
+  min-width: 320px;
+  max-width: 520px;
   background:linear-gradient(180deg, rgba(12,16,26,.98), rgba(10,14,24,.92));
   border-right:1px solid var(--border);
   display:flex;
   flex-direction:column;
 }
+#mapWrap{
+  position: relative;
+  height: 100vh;
+  min-height: 100vh;
+}
+
+/* Map must fill */
+#map{position:absolute;inset:0}
+
+/* Story header/footer */
+.storyHeader{
+  padding: 16px 16px 10px;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.titleBlock h1{margin:0;font-size:1.08rem;letter-spacing:.4px}
+.subtitle{margin:6px 0 0;color:var(--muted);font-size:.9rem}
+.headerActions{display:flex;gap:8px}
+.chip{
+  border:1px solid var(--border);
+  background:rgba(255,255,255,.04);
+  color:var(--text);
+  padding:8px 10px;
+  border-radius:999px;
+  cursor:pointer;
+}
+.chip:hover{background:rgba(255,255,255,.08)}
+.storyFooter{
+  padding:10px 14px 14px;
+  border-top:1px solid var(--border);
+  color:var(--muted);
+  font-size:.85rem;
+}
 #storyBody{overflow:auto;padding:12px 14px 18px}
 
-/* Chapter steps */
+/* Steps */
 .step{
   border:1px solid var(--border);
   background:rgba(255,255,255,.03);
@@ -54,7 +95,7 @@ a:hover{opacity:.9}
 .step .sources{margin-top:10px;font-size:.85rem;color:var(--muted)}
 .step .sources a{color:rgba(99,255,143,.9)}
 
-/* HUD container (place it over map) */
+/* HUD */
 #hud{
   position:absolute;
   left:14px;
@@ -97,7 +138,6 @@ a:hover{opacity:.9}
   cursor:pointer;
 }
 .transportBtn:hover{background:rgba(255,255,255,.11)}
-
 .progress{flex:1;display:grid;gap:6px;margin-left:6px}
 #progressText{color:var(--muted);font-size:.86rem}
 .progressBar{height:8px;border-radius:999px;background:rgba(255,255,255,.10);overflow:hidden}
@@ -120,7 +160,6 @@ a:hover{opacity:.9}
 .hidden{display:none}
 .toggle{display:flex;gap:10px;align-items:center;padding:7px 0}
 .toggle input{transform:scale(1.1)}
-
 .legendItem{display:flex;gap:10px;align-items:center;padding:6px 0}
 .swatch{width:18px;height:10px;border-radius:999px;display:inline-block}
 .swatchTribes{background:var(--tribes)}
@@ -155,8 +194,9 @@ a:hover{opacity:.9}
 }
 .modalBody{padding:14px;color:rgba(245,247,255,.86);line-height:1.5}
 
-/* Mobile drawer story */
+/* Mobile story drawer */
 @media (max-width: 980px){
+  #app{grid-template-columns: 1fr;}
   #story{
     position:absolute;
     z-index:650;
@@ -169,4 +209,5 @@ a:hover{opacity:.9}
     border-top:1px solid var(--border);
   }
   #story.open{transform:translateY(0%)}
+  #mapWrap{height:100vh}
 }
