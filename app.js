@@ -2,10 +2,8 @@ import { CHAPTERS } from "./data/chapters.js";
 import { TRAILS } from "./data/trails.js";
 import { TRIBES } from "./data/tribes.js";
 
-/**
- * If your new index uses different IDs, edit them HERE.
- */
 const $ = (id) => document.getElementById(id);
+
 const els = {
   story: $("story"),
   storyBody: $("storyBody"),
@@ -33,14 +31,6 @@ const els = {
   ambientAudio: $("ambientAudio"),
 };
 
-function assertEl(name, el) {
-  if (!el) console.warn(`Missing element #${name}. Update selectors in app.js or add it to index.html.`);
-}
-Object.entries(els).forEach(([k, v]) => assertEl(k, v));
-
-const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 function escapeHTML(s) {
   return String(s ?? "")
     .replaceAll("&", "&amp;")
@@ -48,6 +38,10 @@ function escapeHTML(s) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function clamp(n, a, b) {
+  return Math.max(a, Math.min(b, n));
 }
 
 function parseURLState() {
@@ -79,16 +73,13 @@ let activeChapterIndex = 0;
 let playing = false;
 let playTimer = null;
 
-// layers
 let trailsLayer;
-let tribesLayer; // markercluster group
-let reservationsLayer = null; // optional geojson
-let trailsById = new Map();
+let tribesLayer;
+let reservationsLayer = null;
+const trailsById = new Map();
 
 function buildStorySteps() {
-  if (!els.storyBody) return;
   els.storyBody.innerHTML = "";
-
   CHAPTERS.forEach((c) => {
     const step = document.createElement("section");
     step.className = "step";
@@ -116,40 +107,38 @@ function buildStorySteps() {
 }
 
 function setActiveStepUI(chapterId) {
-  const steps = [...document.querySelectorAll(".step")];
-  for (const s of steps) {
+  document.querySelectorAll(".step").forEach((s) => {
     s.classList.toggle("is-active", s.dataset.chapter === chapterId);
-  }
+  });
 }
 
 function updateHUD() {
   const c = CHAPTERS[activeChapterIndex];
-  if (els.hudChapterTitle) els.hudChapterTitle.textContent = c?.title ?? "—";
-  if (els.hudChapterMeta) els.hudChapterMeta.textContent = c?.meta ?? "";
-  if (els.progressText) els.progressText.textContent = `${activeChapterIndex + 1} / ${CHAPTERS.length}`;
-  if (els.progressFill) els.progressFill.style.width = `${((activeChapterIndex + 1) / CHAPTERS.length) * 100}%`;
+  els.hudChapterTitle.textContent = c?.title ?? "—";
+  els.hudChapterMeta.textContent = c?.meta ?? "";
+  els.progressText.textContent = `${activeChapterIndex + 1} / ${CHAPTERS.length}`;
+  els.progressFill.style.width = `${((activeChapterIndex + 1) / CHAPTERS.length) * 100}%`;
 }
 
 function closePanels() {
-  els.layersPanel?.classList.add("hidden");
-  els.legendPanel?.classList.add("hidden");
+  els.layersPanel.classList.add("hidden");
+  els.legendPanel.classList.add("hidden");
 }
 
 function togglePanel(panel) {
-  if (!panel) return;
   panel.classList.toggle("hidden");
 }
 
 function stopPlay() {
   playing = false;
-  if (els.btnPlay) els.btnPlay.textContent = "⏯︎";
+  els.btnPlay.textContent = "⏯︎";
   if (playTimer) window.clearInterval(playTimer);
   playTimer = null;
 }
 
 function startPlay() {
   playing = true;
-  if (els.btnPlay) els.btnPlay.textContent = "⏸︎";
+  els.btnPlay.textContent = "⏸︎";
   if (playTimer) window.clearInterval(playTimer);
 
   playTimer = window.setInterval(() => {
@@ -162,20 +151,7 @@ function startPlay() {
   }, 5200);
 }
 
-function applyChapterLayerPrefs(chapter) {
-  if (!chapter?.layers) return;
-
-  if (els.toggleTribes) els.toggleTribes.checked = !!chapter.layers.tribes;
-  if (els.toggleTrails) els.toggleTrails.checked = !!chapter.layers.trails;
-  if (els.toggleReservations) els.toggleReservations.checked = !!chapter.layers.reservations;
-
-  syncLayersFromCheckboxes();
-}
-
 function highlightTrail(trailId) {
-  if (!trailId) return;
-
-  // Dim all trails slightly, highlight one
   for (const [id, layer] of trailsById.entries()) {
     layer.setStyle({
       opacity: id === trailId ? 0.98 : 0.25,
@@ -190,18 +166,49 @@ function clearTrailHighlight() {
   }
 }
 
+function syncLayersFromCheckboxes() {
+  if (!map) return;
+
+  if (els.toggleTribes.checked) {
+    if (!map.hasLayer(tribesLayer)) tribesLayer.addTo(map);
+  } else {
+    if (map.hasLayer(tribesLayer)) map.removeLayer(tribesLayer);
+  }
+
+  if (els.toggleTrails.checked) {
+    if (!map.hasLayer(trailsLayer)) trailsLayer.addTo(map);
+  } else {
+    if (map.hasLayer(trailsLayer)) map.removeLayer(trailsLayer);
+  }
+
+  if (reservationsLayer) {
+    if (els.toggleReservations.checked) {
+      if (!map.hasLayer(reservationsLayer)) reservationsLayer.addTo(map);
+    } else {
+      if (map.hasLayer(reservationsLayer)) map.removeLayer(reservationsLayer);
+    }
+  }
+
+  writeURLState({ chapterId: CHAPTERS[activeChapterIndex]?.id, layers: getEnabledLayersForURL() });
+}
+
+function applyChapterLayerPrefs(c) {
+  if (!c?.layers) return;
+  els.toggleTribes.checked = !!c.layers.tribes;
+  els.toggleTrails.checked = !!c.layers.trails;
+  els.toggleReservations.checked = !!c.layers.reservations;
+  syncLayersFromCheckboxes();
+}
+
 function flyToChapter(idx, { fromScroll = false } = {}) {
   activeChapterIndex = clamp(idx, 0, CHAPTERS.length - 1);
   const c = CHAPTERS[activeChapterIndex];
   if (!c) return;
 
-  stopPlay(); // user-driven nav cancels autoplay
   setActiveStepUI(c.id);
   updateHUD();
 
-  if (map) {
-    map.flyTo(c.view.center, c.view.zoom, { duration: 1.8 });
-  }
+  map.flyTo(c.view.center, c.view.zoom, { duration: 1.8 });
 
   applyChapterLayerPrefs(c);
 
@@ -217,7 +224,6 @@ function flyToChapter(idx, { fromScroll = false } = {}) {
 }
 
 async function loadReservationsOptional() {
-  // optional file: /data/reservations.geojson
   try {
     const res = await fetch("./data/reservations.geojson", { cache: "no-store" });
     if (!res.ok) return;
@@ -231,45 +237,13 @@ async function loadReservationsOptional() {
         fillOpacity: 0.35,
       },
       onEachFeature: (feature, layer) => {
-        const name =
-          feature?.properties?.NAME ||
-          feature?.properties?.name ||
-          "Reservation";
+        const name = feature?.properties?.NAME || feature?.properties?.name || "Reservation";
         layer.bindPopup(`<strong>${escapeHTML(name)}</strong>`);
       },
     });
   } catch {
     // ignore missing file
   }
-}
-
-function syncLayersFromCheckboxes() {
-  if (!map) return;
-
-  // Tribes
-  if (els.toggleTribes?.checked) {
-    if (!map.hasLayer(tribesLayer)) tribesLayer.addTo(map);
-  } else {
-    if (map.hasLayer(tribesLayer)) map.removeLayer(tribesLayer);
-  }
-
-  // Trails
-  if (els.toggleTrails?.checked) {
-    if (!map.hasLayer(trailsLayer)) trailsLayer.addTo(map);
-  } else {
-    if (map.hasLayer(trailsLayer)) map.removeLayer(trailsLayer);
-  }
-
-  // Reservations
-  if (reservationsLayer) {
-    if (els.toggleReservations?.checked) {
-      if (!map.hasLayer(reservationsLayer)) reservationsLayer.addTo(map);
-    } else {
-      if (map.hasLayer(reservationsLayer)) map.removeLayer(reservationsLayer);
-    }
-  }
-
-  writeURLState({ chapterId: CHAPTERS[activeChapterIndex]?.id, layers: getEnabledLayersForURL() });
 }
 
 function setupScrollama() {
@@ -279,28 +253,24 @@ function setupScrollama() {
     .onStepEnter((resp) => {
       const id = resp.element.dataset.chapter;
       const idx = CHAPTERS.findIndex((c) => c.id === id);
-      if (idx !== -1) {
-        // Don’t stop autoplay when autoplay is active and scroll triggers
-        flyToChapter(idx, { fromScroll: true });
-      }
+      if (idx !== -1) flyToChapter(idx, { fromScroll: true });
     });
 
   window.addEventListener("resize", scroller.resize);
 }
 
 function openModal() {
-  els.modalBackdrop?.classList.remove("hidden");
-  els.modal?.classList.remove("hidden");
-  els.modalBackdrop?.setAttribute("aria-hidden", "false");
+  els.modalBackdrop.classList.remove("hidden");
+  els.modal.classList.remove("hidden");
+  els.modalBackdrop.setAttribute("aria-hidden", "false");
 }
 function closeModal() {
-  els.modalBackdrop?.classList.add("hidden");
-  els.modal?.classList.add("hidden");
-  els.modalBackdrop?.setAttribute("aria-hidden", "true");
+  els.modalBackdrop.classList.add("hidden");
+  els.modal.classList.add("hidden");
+  els.modalBackdrop.setAttribute("aria-hidden", "true");
 }
 
 function toast(msg) {
-  const wrap = document.body;
   const t = document.createElement("div");
   t.textContent = msg;
   t.style.position = "fixed";
@@ -313,14 +283,13 @@ function toast(msg) {
   t.style.border = "1px solid rgba(255,255,255,0.10)";
   t.style.boxShadow = "0 16px 50px rgba(0,0,0,0.55)";
   t.style.zIndex = "9999";
-  wrap.appendChild(t);
-  setTimeout(() => t.remove(), 1500);
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 1400);
 }
 
 function initMap() {
   map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([39.5, -98.35], 4);
 
-  // Dark basemap
   L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 19,
     attribution: "&copy; OpenStreetMap contributors &copy; CARTO",
@@ -328,7 +297,6 @@ function initMap() {
 
   L.control.zoom({ position: "bottomright" }).addTo(map);
 
-  // Search (nice “app” feel)
   L.Control.geocoder({
     defaultMarkGeocode: true,
     placeholder: "Search a place…",
@@ -345,16 +313,17 @@ function initMap() {
     trailsLayer.addLayer(line);
     trailsById.set(t.id, line);
   }
+  trailsLayer.addTo(map);
 
-  // Tribes cluster
-  const tribeCluster = L.markerClusterGroup({
+  // Tribes (clustered)
+  const cluster = L.markerClusterGroup({
     showCoverageOnHover: false,
     spiderfyOnMaxZoom: true,
     disableClusteringAtZoom: 7,
   });
 
   for (const tr of TRIBES) {
-    const m = L.circleMarker([tr.lat, tr.lng], {
+    const marker = L.circleMarker([tr.lat, tr.lng], {
       radius: 4,
       weight: 1,
       color: "rgba(0,0,0,0.5)",
@@ -364,53 +333,44 @@ function initMap() {
       <div style="min-width:220px">
         <strong>${escapeHTML(tr.name)}</strong><br/>
         ${tr.state ? `<div style="opacity:.8">${escapeHTML(tr.state)}</div>` : ""}
-        ${
-          tr.link
-            ? `<div style="margin-top:8px"><a href="${tr.link}" target="_blank" rel="noopener">Learn more</a></div>`
-            : ""
-        }
+        ${tr.link ? `<div style="margin-top:8px"><a href="${tr.link}" target="_blank" rel="noopener">Learn more</a></div>` : ""}
       </div>
     `);
-    tribeCluster.addLayer(m);
+    cluster.addLayer(marker);
   }
-
-  tribesLayer = tribeCluster;
-
-  // Add defaults
-  trailsLayer.addTo(map);
+  tribesLayer = cluster;
   tribesLayer.addTo(map);
 
-  loadReservationsOptional(); // optional file
+  // Optional reservations
+  loadReservationsOptional();
 
-  // close panels on map click
   map.on("click", closePanels);
 }
 
 function setupUI() {
-  els.btnPrev?.addEventListener("click", () => flyToChapter(activeChapterIndex - 1));
-  els.btnNext?.addEventListener("click", () => flyToChapter(activeChapterIndex + 1));
-  els.btnPlay?.addEventListener("click", () => (playing ? stopPlay() : startPlay()));
+  els.btnPrev.addEventListener("click", () => flyToChapter(activeChapterIndex - 1));
+  els.btnNext.addEventListener("click", () => flyToChapter(activeChapterIndex + 1));
+  els.btnPlay.addEventListener("click", () => (playing ? stopPlay() : startPlay()));
 
-  els.btnLayers?.addEventListener("click", (e) => {
+  els.btnLayers.addEventListener("click", (e) => {
     e.stopPropagation();
-    els.legendPanel?.classList.add("hidden");
+    els.legendPanel.classList.add("hidden");
     togglePanel(els.layersPanel);
   });
-  els.btnLegend?.addEventListener("click", (e) => {
+  els.btnLegend.addEventListener("click", (e) => {
     e.stopPropagation();
-    els.layersPanel?.classList.add("hidden");
+    els.layersPanel.classList.add("hidden");
     togglePanel(els.legendPanel);
   });
 
-  els.btnToggleStory?.addEventListener("click", () => els.story?.classList.toggle("open"));
+  els.btnToggleStory.addEventListener("click", () => els.story.classList.toggle("open"));
 
-  els.toggleTribes?.addEventListener("change", syncLayersFromCheckboxes);
-  els.toggleTrails?.addEventListener("change", syncLayersFromCheckboxes);
-  els.toggleReservations?.addEventListener("change", syncLayersFromCheckboxes);
+  els.toggleTribes.addEventListener("change", syncLayersFromCheckboxes);
+  els.toggleTrails.addEventListener("change", syncLayersFromCheckboxes);
+  els.toggleReservations.addEventListener("change", syncLayersFromCheckboxes);
 
-  els.toggleAudio?.addEventListener("change", async () => {
+  els.toggleAudio.addEventListener("change", async () => {
     try {
-      if (!els.ambientAudio) return;
       if (els.toggleAudio.checked) await els.ambientAudio.play();
       else els.ambientAudio.pause();
     } catch {
@@ -419,26 +379,24 @@ function setupUI() {
     }
   });
 
-  els.btnAbout?.addEventListener("click", openModal);
-  els.btnCloseModal?.addEventListener("click", closeModal);
-  els.modalBackdrop?.addEventListener("click", closeModal);
+  els.btnAbout.addEventListener("click", openModal);
+  els.btnCloseModal.addEventListener("click", closeModal);
+  els.modalBackdrop.addEventListener("click", closeModal);
 
-  els.btnShare?.addEventListener("click", async () => {
-    const url = window.location.href;
+  els.btnShare.addEventListener("click", async () => {
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(window.location.href);
       toast("Link copied!");
     } catch {
       toast("Copy failed — manually copy the URL.");
     }
   });
 
-  // Keyboard shortcuts
   window.addEventListener("keydown", (e) => {
     if (e.key === "ArrowRight") flyToChapter(activeChapterIndex + 1);
     if (e.key === "ArrowLeft") flyToChapter(activeChapterIndex - 1);
     if (e.key.toLowerCase() === "l") {
-      els.legendPanel?.classList.add("hidden");
+      els.legendPanel.classList.add("hidden");
       togglePanel(els.layersPanel);
     }
   });
@@ -448,9 +406,9 @@ async function initFromURL() {
   const { chapter, layers } = parseURLState();
 
   if (layers.length) {
-    if (els.toggleTribes) els.toggleTribes.checked = layers.includes("tribes");
-    if (els.toggleTrails) els.toggleTrails.checked = layers.includes("trails");
-    if (els.toggleReservations) els.toggleReservations.checked = layers.includes("reservations");
+    els.toggleTribes.checked = layers.includes("tribes");
+    els.toggleTrails.checked = layers.includes("trails");
+    els.toggleReservations.checked = layers.includes("reservations");
   }
 
   syncLayersFromCheckboxes();
@@ -458,8 +416,7 @@ async function initFromURL() {
   if (chapter) {
     const idx = CHAPTERS.findIndex((c) => c.id === chapter);
     if (idx !== -1) {
-      await sleep(60);
-      flyToChapter(idx);
+      setTimeout(() => flyToChapter(idx), 60);
       return;
     }
   }
