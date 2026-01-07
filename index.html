@@ -2,47 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1, viewport-fit=cover"
-    />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Echoes of the Land — Indigenous History Story Map</title>
-    <meta
-      name="description"
-      content="An interactive story map exploring Indigenous presence, migration, and forced relocation across North America."
-    />
-
-    <!-- Open Graph -->
-    <meta property="og:title" content="Echoes of the Land — Story Map" />
-    <meta
-      property="og:description"
-      content="Explore Indigenous history through chapters, routes, and map layers."
-    />
-    <meta property="og:type" content="website" />
+    <meta name="description" content="An interactive story map exploring Indigenous presence, migration, and forced relocation across North America." />
 
     <!-- Leaflet -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
     <!-- MarkerCluster -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
-    />
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- Geocoder -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css"
-    />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 
     <!-- Scrollama -->
@@ -53,7 +27,7 @@
 
   <body>
     <div id="app">
-      <!-- LEFT: Story panel -->
+      <!-- LEFT: Story -->
       <aside id="story" aria-label="Story">
         <header class="storyHeader">
           <div class="titleBlock">
@@ -67,14 +41,12 @@
           </div>
         </header>
 
-        <div id="storyBody">
+        <div id="storyBody" aria-label="Chapters">
           <!-- Steps inserted by app.js -->
         </div>
 
         <footer class="storyFooter">
-          <div class="hint">
-            Tip: Scroll to advance chapters • Click map features for details
-          </div>
+          <div class="hint">Tip: Scroll to advance chapters • Click map features for details</div>
         </footer>
       </aside>
 
@@ -85,9 +57,7 @@
         <!-- HUD -->
         <div id="hud">
           <div class="hudRow">
-            <button id="btnToggleStory" class="hudBtn" title="Toggle story panel">
-              ☰
-            </button>
+            <button id="btnToggleStory" class="hudBtn" title="Toggle story panel">☰</button>
 
             <div class="hudTitle">
               <div id="hudChapterTitle">Loading…</div>
@@ -105,55 +75,46 @@
 
             <div class="progress">
               <div class="progressText" id="progressText">0 / 0</div>
-              <div class="progressBar">
-                <div class="progressFill" id="progressFill"></div>
-              </div>
+              <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
             </div>
           </div>
 
-          <!-- Popover: Layers -->
+          <!-- Layers panel -->
           <div id="layersPanel" class="panel hidden" role="dialog" aria-label="Layers">
             <div class="panelTitle">Layers</div>
+
             <label class="toggle">
               <input id="toggleTribes" type="checkbox" checked />
-              <span>Tribal locations</span>
+              <span>Tribal locations (clustered)</span>
             </label>
-            <label class="toggle">
-              <input id="toggleReservations" type="checkbox" />
-              <span>Reservations</span>
-            </label>
+
             <label class="toggle">
               <input id="toggleTrails" type="checkbox" checked />
               <span>Historical trails</span>
             </label>
+
+            <label class="toggle">
+              <input id="toggleReservations" type="checkbox" />
+              <span>Reservations (GeoJSON)</span>
+            </label>
+
             <label class="toggle">
               <input id="toggleAudio" type="checkbox" />
               <span>Ambient audio</span>
             </label>
+
             <div class="panelFooter">
               <small>Audio requires interaction to start (browser policy).</small>
             </div>
           </div>
 
-          <!-- Popover: Legend -->
+          <!-- Legend panel -->
           <div id="legendPanel" class="panel hidden" role="dialog" aria-label="Legend">
             <div class="panelTitle">Legend</div>
-            <div class="legendItem">
-              <span class="swatch swatchTribes"></span>
-              <span>Tribal locations</span>
-            </div>
-            <div class="legendItem">
-              <span class="swatch swatchReservations"></span>
-              <span>Reservations (polygons)</span>
-            </div>
-            <div class="legendItem">
-              <span class="swatch swatchTears"></span>
-              <span>Trail of Tears (route)</span>
-            </div>
-            <div class="legendItem">
-              <span class="swatch swatchOjibwe"></span>
-              <span>Ojibwe migration (route)</span>
-            </div>
+            <div class="legendItem"><span class="swatch swatchTribes"></span><span>Tribal locations</span></div>
+            <div class="legendItem"><span class="swatch swatchReservations"></span><span>Reservations (polygons)</span></div>
+            <div class="legendItem"><span class="swatch swatchTears"></span><span>Trail of Tears (route)</span></div>
+            <div class="legendItem"><span class="swatch swatchOjibwe"></span><span>Ojibwe migration (route)</span></div>
           </div>
         </div>
 
@@ -162,23 +123,21 @@
         <div id="modal" class="modal hidden" role="dialog" aria-label="About">
           <div class="modalHeader">
             <div class="modalTitle">About this map</div>
-            <button id="btnCloseModal" class="modalClose">×</button>
+            <button id="btnCloseModal" class="modalClose" aria-label="Close">×</button>
           </div>
           <div class="modalBody">
             <p>
-              This story map is an educational visualization of Indigenous presence,
-              migration, and forced relocation. Boundaries and locations may be approximate
-              and should be interpreted with care.
+              This story map is an educational visualization of Indigenous presence, migration, and forced relocation.
+              Boundaries and locations may be approximate and should be interpreted with care.
             </p>
             <p>
-              If you have sources or corrections, open an issue on GitHub.
+              To suggest corrections or add sources, please open an issue on GitHub.
             </p>
           </div>
         </div>
 
-        <!-- Audio -->
+        <!-- Optional audio -->
         <audio id="ambientAudio" preload="none" loop>
-          <!-- Update this path to your existing audio file -->
           <source src="./audio/powwow.mp3" type="audio/mpeg" />
         </audio>
       </main>
