@@ -30,7 +30,7 @@ body {
   flex-direction: column;
   background: var(--panel);
   border-right: 1px solid var(--border);
-  min-height: 0; /* important for nested scrolling */
+  min-height: 0;
 }
 
 #storyBody {
@@ -144,6 +144,7 @@ button:hover { background: rgba(255,255,255,0.10); }
   }
 
   #mapWrap { height: 45dvh; }
+
   #story {
     border-right: none;
     border-top: 1px solid var(--border);
