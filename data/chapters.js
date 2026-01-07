@@ -1,8 +1,5 @@
 // /data/chapters.js
 export const CHAPTERS = [
-  /* --------------------------------------------------
-     INTRODUCTION
-  -------------------------------------------------- */
   {
     id: "begin",
     title: "Introduction",
@@ -19,13 +16,10 @@ Scroll to move through regions and time periods.
 Each chapter highlights patterns, not absolutes—and is meant to invite deeper learning.
 `,
     view: { center: [39.5, -98.35], zoom: 4.2 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
     sources: [],
   },
 
-  /* --------------------------------------------------
-     DEEP TIME & ORIGINS
-  -------------------------------------------------- */
   {
     id: "deep-time",
     title: "Deep Time and Indigenous Presence",
@@ -42,13 +36,10 @@ These knowledge systems serve different purposes:
 Neither replaces the other.
 `,
     view: { center: [60, -120], zoom: 3 },
-    layers: { trails: false, tribes: false, places: false },
+    layers: { regions: true, trails: false, tribes: false, places: false },
     sources: [],
   },
 
-  /* --------------------------------------------------
-     REGIONAL CULTURAL AREAS (PRE-CONTACT)
-  -------------------------------------------------- */
   {
     id: "northeast",
     title: "Northeast Woodlands",
@@ -64,7 +55,7 @@ Key characteristics included:
 European arrival profoundly disrupted these systems through disease, land seizure, and warfare.
 `,
     view: { center: [43, -75], zoom: 5 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
     sources: [],
   },
 
@@ -82,7 +73,7 @@ Before removal policies, Nations such as the Cherokee, Muscogee (Creek), Choctaw
 Despite treaties and legal resistance, U.S. removal policies forcibly displaced many Southeast Nations in the 19th century.
 `,
     view: { center: [34, -85], zoom: 5 },
-    layers: { trails: true, tribes: true, places: true },
+    layers: { regions: true, trails: true, tribes: true, places: true },
     sources: [],
   },
 
@@ -101,7 +92,8 @@ Contrary to stereotypes, Plains cultures were not static.
 They adapted rapidly to horses, trade, and shifting political realities—while facing increasing pressure from U.S. expansion.
 `,
     view: { center: [44, -100], zoom: 4.5 },
-    layers: { trails: false, tribes: true, places: false },
+    layers: { regions: true, trails: false, tribes: true, places: false },
+    highlight: { regionIds: ["plains"] },
     sources: [],
   },
 
@@ -119,7 +111,8 @@ This region includes:
 Spanish colonization brought violence, forced labor, and mission systems—but Indigenous communities endured and adapted.
 `,
     view: { center: [35, -109], zoom: 5 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
+    highlight: { regionIds: ["southwest"] },
     sources: [],
   },
 
@@ -137,7 +130,8 @@ Colonization, Gold Rush violence, and state-sponsored campaigns caused catastrop
 Yet California Native Nations persist, revitalize languages, and assert sovereignty today.
 `,
     view: { center: [37, -120], zoom: 5 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
+    highlight: { regionIds: ["california"] },
     sources: [],
   },
 
@@ -155,7 +149,7 @@ Distinctive features included:
 Colonization disrupted these systems through land seizure, bans on ceremony, and environmental destruction—yet cultural continuity remains strong.
 `,
     view: { center: [47, -123], zoom: 5 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
     sources: [],
   },
 
@@ -173,13 +167,10 @@ These societies emphasized:
 U.S. expansion and reservation policies fragmented these systems, but Nations continue to maintain ties to homelands.
 `,
     view: { center: [40, -115], zoom: 5 },
-    layers: { trails: false, tribes: true, places: false },
+    layers: { regions: true, trails: false, tribes: true, places: false },
     sources: [],
   },
 
-  /* --------------------------------------------------
-     U.S. POLICIES & MODERN ERA
-  -------------------------------------------------- */
   {
     id: "policies",
     title: "U.S. Policy and Its Consequences",
@@ -195,7 +186,7 @@ These policies aimed to dismantle sovereignty and assimilate Indigenous Peoples.
 Their impacts continue to shape communities today.
 `,
     view: { center: [39.5, -98.35], zoom: 4 },
-    layers: { trails: true, tribes: true, places: false },
+    layers: { regions: true, trails: true, tribes: true, places: false },
     sources: [],
   },
 
@@ -215,7 +206,7 @@ This map can only gesture toward that reality.
 Real understanding comes from listening to Nation voices.
 `,
     view: { center: [39.5, -98.35], zoom: 4.1 },
-    layers: { trails: false, tribes: true, places: false },
+    layers: { regions: true, trails: false, tribes: true, places: false },
     sources: [],
   },
 
@@ -237,7 +228,7 @@ Responsibility does not end.
 Learning does not end.
 `,
     view: { center: [39.5, -98.35], zoom: 4 },
-    layers: { trails: false, tribes: true, places: true },
+    layers: { regions: true, trails: false, tribes: true, places: true },
     sources: [],
   },
 ];
