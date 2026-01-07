@@ -4,142 +4,91 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Echoes of the Land — Indigenous History Story Map</title>
-    <meta name="description" content="An interactive story map exploring Indigenous presence, migration, and forced relocation across North America." />
-
-    <!-- Leaflet -->
+    
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- MarkerCluster -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
-    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
-    <!-- Geocoder -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
-    <!-- Scrollama -->
-    <script src="https://unpkg.com/scrollama"></script>
-
     <link rel="stylesheet" href="./styles.css" />
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/scrollama"></script>
   </head>
 
   <body>
     <div id="app">
-      <!-- LEFT: Story -->
       <aside id="story" aria-label="Story">
         <header class="storyHeader">
           <div class="titleBlock">
             <h1>Echoes of the Land</h1>
             <p class="subtitle">Indigenous History Story Map</p>
           </div>
-
           <div class="headerActions">
             <button id="btnAbout" class="chip">About</button>
             <button id="btnShare" class="chip">Share</button>
           </div>
         </header>
-
-        <div id="storyBody" aria-label="Chapters">
-          <!-- Steps inserted by app.js -->
-        </div>
-
+        <div id="storyBody"></div>
         <footer class="storyFooter">
-          <div class="hint">Tip: Scroll to advance chapters • Click map features for details</div>
+          <div class="hint">Tip: Scroll to advance • Click map for details</div>
         </footer>
       </aside>
 
-      <!-- RIGHT: Map -->
-      <main id="mapWrap" aria-label="Map">
+      <main id="mapWrap">
         <div id="map"></div>
 
-        <!-- HUD -->
         <div id="hud">
           <div class="hudRow">
-            <button id="btnToggleStory" class="hudBtn" title="Toggle story panel">☰</button>
-
+            <button id="btnToggleStory" class="hudBtn">☰</button>
             <div class="hudTitle">
               <div id="hudChapterTitle">Loading…</div>
               <div id="hudChapterMeta">—</div>
             </div>
-
-            <button id="btnLegend" class="hudBtn" title="Legend">◎</button>
-            <button id="btnLayers" class="hudBtn" title="Layers">⧉</button>
+            <button id="btnLegend" class="hudBtn">◎</button>
+            <button id="btnLayers" class="hudBtn">⧉</button>
           </div>
 
           <div class="hudRow hudTransport">
-            <button id="btnPrev" class="transportBtn" title="Previous chapter">⏮︎</button>
-            <button id="btnPlay" class="transportBtn" title="Play / pause">⏯︎</button>
-            <button id="btnNext" class="transportBtn" title="Next chapter">⏭︎</button>
-
+            <button id="btnPrev" class="transportBtn">⏮︎</button>
+            <button id="btnPlay" class="transportBtn">⏯︎</button>
+            <button id="btnNext" class="transportBtn">⏭︎</button>
             <div class="progress">
-              <div class="progressText" id="progressText">0 / 0</div>
-              <div class="progressBar"><div class="progressFill" id="progressFill"></div></div>
+              <div id="progressText" class="progressText">0 / 0</div>
+              <div class="progressBar"><div id="progressFill" class="progressFill"></div></div>
             </div>
           </div>
 
-          <!-- Layers panel -->
-          <div id="layersPanel" class="panel hidden" role="dialog" aria-label="Layers">
+          <div id="layersPanel" class="panel hidden">
             <div class="panelTitle">Layers</div>
-
-            <label class="toggle">
-              <input id="toggleTribes" type="checkbox" checked />
-              <span>Tribal locations (clustered)</span>
-            </label>
-
-            <label class="toggle">
-              <input id="toggleTrails" type="checkbox" checked />
-              <span>Historical trails</span>
-            </label>
-
-            <label class="toggle">
-              <input id="toggleReservations" type="checkbox" />
-              <span>Reservations (GeoJSON)</span>
-            </label>
-
-            <label class="toggle">
-              <input id="toggleAudio" type="checkbox" />
-              <span>Ambient audio</span>
-            </label>
-
-            <div class="panelFooter">
-              <small>Audio requires interaction to start (browser policy).</small>
-            </div>
+            <label class="toggle"><input id="toggleTribes" type="checkbox" checked /> <span>Tribes</span></label>
+            <label class="toggle"><input id="toggleTrails" type="checkbox" checked /> <span>Trails</span></label>
+            <label class="toggle"><input id="toggleReservations" type="checkbox" /> <span>Reservations</span></label>
+            <label class="toggle"><input id="toggleAudio" type="checkbox" /> <span>Audio</span></label>
           </div>
 
-          <!-- Legend panel -->
-          <div id="legendPanel" class="panel hidden" role="dialog" aria-label="Legend">
+          <div id="legendPanel" class="panel hidden">
             <div class="panelTitle">Legend</div>
             <div class="legendItem"><span class="swatch swatchTribes"></span><span>Tribal locations</span></div>
-            <div class="legendItem"><span class="swatch swatchReservations"></span><span>Reservations (polygons)</span></div>
-            <div class="legendItem"><span class="swatch swatchTears"></span><span>Trail of Tears (route)</span></div>
-            <div class="legendItem"><span class="swatch swatchOjibwe"></span><span>Ojibwe migration (route)</span></div>
+            <div class="legendItem"><span class="swatch swatchReservations"></span><span>Reservations</span></div>
+            <div class="legendItem"><span class="swatch swatchTears"></span><span>Trail of Tears</span></div>
+            <div class="legendItem"><span class="swatch swatchOjibwe"></span><span>Ojibwe Migration</span></div>
           </div>
         </div>
 
-        <!-- About modal -->
-        <div id="modalBackdrop" class="modalBackdrop hidden" aria-hidden="true"></div>
-        <div id="modal" class="modal hidden" role="dialog" aria-label="About">
+        <div id="modalBackdrop" class="modalBackdrop hidden"></div>
+        <div id="modal" class="modal hidden">
           <div class="modalHeader">
-            <div class="modalTitle">About this map</div>
-            <button id="btnCloseModal" class="modalClose" aria-label="Close">×</button>
+            <div class="modalTitle">About</div>
+            <button id="btnCloseModal" class="modalClose">×</button>
           </div>
           <div class="modalBody">
-            <p>
-              This story map is an educational visualization of Indigenous presence, migration, and forced relocation.
-              Boundaries and locations may be approximate and should be interpreted with care.
-            </p>
-            <p>
-              To suggest corrections or add sources, please open an issue on GitHub.
-            </p>
+            <p>Educational visualization of Indigenous presence and migration.</p>
           </div>
         </div>
 
-        <!-- Optional audio -->
-        <audio id="ambientAudio" preload="none" loop>
-          <source src="./audio/powwow.mp3" type="audio/mpeg" />
-        </audio>
+        <audio id="ambientAudio" loop><source src="./audio/powwow.mp3" type="audio/mpeg" /></audio>
       </main>
     </div>
 
