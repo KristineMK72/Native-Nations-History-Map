@@ -10,11 +10,9 @@ const els = {
   storyBody: $("storyBody"),
   btnPrev: $("btnPrev"),
   btnNext: $("btnNext"),
-
   hudChapterTitle: $("hudChapterTitle"),
   progressText: $("progressText"),
   progressFill: $("progressFill"),
-  sourceList: $("sourceList"), // optional if you add it in HTML
 };
 
 let map;
@@ -22,22 +20,18 @@ let trailsLayer, tribesLayer, placesLayer;
 let activeChapterIndex = 0;
 let lastChapterId = null;
 
-// Optional highlight support if your TRAILS have ids
+// Optional highlighting if TRAILS objects have ids
 let trailPolylinesById = new Map();
 
-function setText(el, txt) {
-  if (el) el.textContent = txt;
+/* ---------------------------
+   Small helpers
+----------------------------*/
+function setText(el, value) {
+  if (el) el.textContent = value;
 }
 
 function setWidth(el, pct) {
   if (el) el.style.width = `${pct}%`;
-}
-
-function setLayerVisible(layer, visible) {
-  if (!layer || !map) return;
-  const onMap = map.hasLayer(layer);
-  if (visible && !onMap) layer.addTo(map);
-  if (!visible && onMap) map.removeLayer(layer);
 }
 
 function setActiveStep(stepEl) {
@@ -45,25 +39,46 @@ function setActiveStep(stepEl) {
   if (stepEl) stepEl.classList.add("active");
 }
 
-function renderSources(chapter) {
-  if (!els.sourceList) return;
-  const sources = chapter.sources || [];
-  if (!sources.length) {
-    els.sourceList.innerHTML = "";
-    return;
-  }
+function safeMapInvalidate() {
+  if (!map) return;
+  requestAnimationFrame(() => map.invalidateSize());
+  setTimeout(() => map.invalidateSize(), 250);
+  setTimeout(() => map.invalidateSize(), 700);
+}
 
-  els.sourceList.innerHTML = sources
-    .map((s) => {
-      const safeLabel = (s.label || "Source").replaceAll("<", "&lt;");
-      const url = (s.url || "").trim();
-      if (!url) return `<li>${safeLabel}</li>`;
-      return `<li><a href="${url}" target="_blank" rel="noreferrer noopener">${safeLabel}</a></li>`;
-    })
-    .join("");
+/* ---------------------------
+   Layer visibility + highlights
+----------------------------*/
+function setLayerVisible(layer, visible) {
+  if (!map || !layer) return;
+  try {
+    const onMap = map.hasLayer(layer);
+    if (visible && !onMap) layer.addTo(map);
+    if (!visible && onMap) map.removeLayer(layer);
+  } catch (e) {
+    console.warn("Layer toggle failed:", e);
+  }
+}
+
+function clearTrailHighlights() {
+  for (const poly of trailPolylinesById.values()) {
+    poly.setStyle({ weight: 4, opacity: 0.8 });
+  }
+}
+
+function highlightTrails(ids) {
+  for (const poly of trailPolylinesById.values()) {
+    poly.setStyle({ weight: 4, opacity: 0.25 });
+  }
+  for (const id of ids) {
+    const poly = trailPolylinesById.get(id);
+    if (poly) poly.setStyle({ weight: 7, opacity: 0.95 });
+  }
 }
 
 function applyChapterLayers(chapter) {
+  // Because chapters ALWAYS define layers in our design,
+  // the experience is consistent and intentional.
   const l = chapter.layers || {};
   setLayerVisible(trailsLayer, !!l.trails);
   setLayerVisible(tribesLayer, !!l.tribes);
@@ -73,61 +88,50 @@ function applyChapterLayers(chapter) {
   else clearTrailHighlights();
 }
 
-function highlightTrails(ids) {
-  // Only works if TRAILS include id and we stored polylines by id
-  for (const [id, poly] of trailPolylinesById.entries()) {
-    poly.setStyle({ weight: 4, opacity: 0.35 });
-  }
-  ids.forEach((id) => {
-    const poly = trailPolylinesById.get(id);
-    if (poly) poly.setStyle({ weight: 7, opacity: 0.9 });
-  });
-}
-
-function clearTrailHighlights() {
-  for (const poly of trailPolylinesById.values()) {
-    poly.setStyle({ weight: 4, opacity: 0.8 });
-  }
-}
-
+/* ---------------------------
+   HUD + chapter navigation
+----------------------------*/
 function updateHUD() {
   const c = CHAPTERS[activeChapterIndex];
-  setText(els.hudChapterTitle, c?.title || "Chapter");
+  setText(els.hudChapterTitle, c?.title ?? "Chapter");
   setText(els.progressText, `${activeChapterIndex + 1} / ${CHAPTERS.length}`);
   setWidth(els.progressFill, ((activeChapterIndex + 1) / CHAPTERS.length) * 100);
-  renderSources(c);
 }
 
-function flyToChapter(idx, { animate = true } = {}) {
+function goToChapter(idx, { animate = true } = {}) {
   activeChapterIndex = Math.max(0, Math.min(CHAPTERS.length - 1, idx));
   const c = CHAPTERS[activeChapterIndex];
 
   updateHUD();
   applyChapterLayers(c);
 
-  const center = c?.view?.center;
-  const zoom = c?.view?.zoom;
+  if (!map || !c?.view?.center) return;
+  const zoom = typeof c.view.zoom === "number" ? c.view.zoom : map.getZoom();
 
-  if (map && center && typeof zoom === "number") {
-    if (animate) map.flyTo(center, zoom, { duration: 1.8 });
-    else map.setView(center, zoom);
-  }
+  if (animate) map.flyTo(c.view.center, zoom, { duration: 1.8 });
+  else map.setView(c.view.center, zoom);
 }
 
 function onChapterEnter(chapterId) {
-  const idx = CHAPTERS.findIndex((c) => c.id === chapterId);
-  if (idx === -1) return;
   if (chapterId === lastChapterId) return;
   lastChapterId = chapterId;
 
+  const idx = CHAPTERS.findIndex((c) => c.id === chapterId);
+  if (idx === -1) return;
+
   const stepEl = document.querySelector(`.step[data-chapter="${chapterId}"]`);
   setActiveStep(stepEl);
-  flyToChapter(idx);
+  goToChapter(idx);
 }
 
+/* ---------------------------
+   Scroll-driven chapters
+----------------------------*/
 function setupScrollChapters() {
   const steps = Array.from(document.querySelectorAll(".step"));
   if (!steps.length) return;
+
+  const root = els.storyBody || null;
 
   const io = new IntersectionObserver(
     (entries) => {
@@ -140,9 +144,8 @@ function setupScrollChapters() {
       }
     },
     {
-      root: els.storyBody || null,
+      root,
       threshold: [0.25, 0.5, 0.75],
-      // “activation band” — feels like scrollytelling
       rootMargin: "-40% 0px -40% 0px",
     }
   );
@@ -150,34 +153,9 @@ function setupScrollChapters() {
   steps.forEach((s) => io.observe(s));
 }
 
-function initMap() {
-  if (!window.L) {
-    console.error("Leaflet (window.L) not found. Make sure leaflet.js loads before app.js.");
-    return;
-  }
-  const mapEl = $("map");
-  if (!mapEl) {
-    console.error("Missing #map element in HTML.");
-    return;
-  }
-
-  map = L.map(mapEl, { zoomControl: false, preferCanvas: true }).setView([39.5, -98.35], 4);
-
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
-    attribution: "&copy; CARTO",
-  }).addTo(map);
-
-  setupLayers();
-
-  // Mobile-safe sizing
-  requestAnimationFrame(() => map.invalidateSize());
-  setTimeout(() => map.invalidateSize(), 300);
-  setTimeout(() => map.invalidateSize(), 800);
-
-  // Start at first chapter
-  flyToChapter(0, { animate: false });
-}
-
+/* ---------------------------
+   Map + layers
+----------------------------*/
 function setupLayers() {
   // Trails
   trailsLayer = L.layerGroup();
@@ -185,14 +163,17 @@ function setupLayers() {
 
   for (const t of TRAILS) {
     if (!t?.coords?.length) continue;
+
     const poly = L.polyline(t.coords, {
       color: t.color || "#5dade2",
       weight: 4,
       opacity: 0.8,
-    }).addTo(trailsLayer);
+    });
+
+    if (t.name) poly.bindPopup(`<strong>${t.name}</strong>`);
+    poly.addTo(trailsLayer);
 
     if (t.id) trailPolylinesById.set(t.id, poly);
-    if (t.name) poly.bindPopup(`<strong>${t.name}</strong>`);
   }
   trailsLayer.addTo(map);
 
@@ -200,6 +181,7 @@ function setupLayers() {
   placesLayer = L.layerGroup();
   for (const p of PLACES) {
     if (typeof p?.lat !== "number" || typeof p?.lng !== "number") continue;
+
     L.circleMarker([p.lat, p.lng], {
       radius: 7,
       fillColor: "#ff9f43",
@@ -212,12 +194,13 @@ function setupLayers() {
   }
   placesLayer.addTo(map);
 
-  // Tribes (cluster if available)
+  // Tribes (cluster if available; fallback if not)
   const hasCluster = typeof L.markerClusterGroup === "function";
   tribesLayer = hasCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 7 }) : L.layerGroup();
 
   for (const tr of TRIBES) {
     if (typeof tr?.lat !== "number" || typeof tr?.lng !== "number") continue;
+
     L.circleMarker([tr.lat, tr.lng], {
       radius: 5,
       fillColor: "#63ff8f",
@@ -231,6 +214,36 @@ function setupLayers() {
   tribesLayer.addTo(map);
 }
 
+function initMap() {
+  if (!window.L) {
+    console.error("Leaflet not loaded. Ensure leaflet.js loads before app.js.");
+    return;
+  }
+  if (!$("map")) {
+    console.error("Missing #map element in HTML.");
+    return;
+  }
+
+  map = L.map("map", { zoomControl: false, preferCanvas: true }).setView([39.5, -98.35], 4);
+
+  L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", {
+    attribution: "&copy; CARTO",
+  }).addTo(map);
+
+  setupLayers();
+  safeMapInvalidate();
+
+  // Start at Chapter 1 (Begin) with no animation
+  goToChapter(0, { animate: false });
+
+  // Keep Leaflet happy on mobile rotation/resizes
+  window.addEventListener("resize", safeMapInvalidate);
+  window.addEventListener("orientationchange", () => setTimeout(safeMapInvalidate, 350));
+}
+
+/* ---------------------------
+   Render story + boot
+----------------------------*/
 function renderStory() {
   if (!els.storyBody) return;
 
@@ -238,7 +251,7 @@ function renderStory() {
     (c) => `
       <section class="step" data-chapter="${c.id}">
         <h2>${c.title}</h2>
-        <p>${String(c.body).trim().replace(/\n\s*\n/g, "\n\n")}</p>
+        <p>${String(c.body).trim()}</p>
       </section>
     `
   ).join("");
@@ -246,20 +259,18 @@ function renderStory() {
 
 function boot() {
   if (!els.storyBody) {
-    console.error("Missing #storyBody. Check your HTML.");
+    console.error("Missing #storyBody element in HTML.");
     return;
   }
 
   renderStory();
   setupScrollChapters();
 
-  if (els.btnNext) els.btnNext.onclick = () => flyToChapter(activeChapterIndex + 1);
-  if (els.btnPrev) els.btnPrev.onclick = () => flyToChapter(activeChapterIndex - 1);
+  if (els.btnNext) els.btnNext.onclick = () => goToChapter(activeChapterIndex + 1);
+  if (els.btnPrev) els.btnPrev.onclick = () => goToChapter(activeChapterIndex - 1);
 
-  // Let layout paint before Leaflet measures
+  // Let layout paint before Leaflet measures size
   setTimeout(initMap, 180);
 }
 
 window.addEventListener("load", boot);
-window.addEventListener("resize", () => map && map.invalidateSize());
-window.addEventListener("orientationchange", () => map && setTimeout(() => map.invalidateSize(), 400));
