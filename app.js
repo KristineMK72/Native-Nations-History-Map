@@ -1,7 +1,6 @@
 // /app.js
 import { CHAPTERS } from "./data/chapters.js";
 import { TRAILS } from "./data/trails.js";
-import { TRIBES } from "./data/tribes.js";
 import { PLACES } from "./data/places.js";
 import { REGIONS } from "./data/regions.js";
 
@@ -21,17 +20,27 @@ let map = null;
 // Layers
 let regionsLayer = null;
 let trailsLayer = null;
-let tribesLayer = null;
 let placesLayer = null;
+let tribesLayer = null;
 
-// Chapter state
+// State
 let activeChapterIndex = 0;
 let lastChapterId = null;
 let ignoreScrollUntil = 0;
 
-// Highlight maps
-let trailPolylinesById = new Map();
+// Highlights
 let regionPolygonsById = new Map();
+let trailPolylinesById = new Map();
+
+// Tribes lazy-load state
+let tribesBuilt = false;
+let tribesLoading = false;
+
+/* =========================================================
+   BIA Tribal Leaders Directory (ArcGIS FeatureServer)
+========================================================= */
+const TRIBAL_LEADERS_FS =
+  "https://services1.arcgis.com/UxqqIfhng71wUT9x/arcgis/rest/services/TribalLeadership_Directory/FeatureServer/0";
 
 /* =========================================================
    Utilities
@@ -65,23 +74,101 @@ function safeMapInvalidate() {
   setTimeout(() => map.invalidateSize(), 700);
 }
 
-/* =========================================================
-   Layer control
-========================================================= */
 function setLayerVisible(layer, visible) {
   if (!map || !layer) return;
-  try {
-    const onMap = map.hasLayer(layer);
-    if (visible && !onMap) layer.addTo(map);
-    if (!visible && onMap) map.removeLayer(layer);
-  } catch (e) {
-    console.warn("Layer toggle failed:", e);
+  const onMap = map.hasLayer(layer);
+  if (visible && !onMap) layer.addTo(map);
+  if (!visible && onMap) map.removeLayer(layer);
+}
+
+/* =========================================================
+   ArcGIS fetch helpers (GeoJSON pagination)
+========================================================= */
+async function fetchArcGisGeoJsonAll(urlBase, { where = "1=1", outFields = "*", pageSize = 2000 } = {}) {
+  const features = [];
+  let offset = 0;
+
+  while (true) {
+    const url =
+      `${urlBase}/query?` +
+      new URLSearchParams({
+        f: "geojson",
+        where,
+        outFields,
+        returnGeometry: "true",
+        outSR: "4326",
+        resultOffset: String(offset),
+        resultRecordCount: String(pageSize),
+      });
+
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`ArcGIS query failed: ${res.status}`);
+    const gj = await res.json();
+
+    const batch = gj?.features || [];
+    features.push(...batch);
+
+    if (batch.length < pageSize) break;
+    offset += pageSize;
   }
+
+  return { type: "FeatureCollection", features };
+}
+
+/* =========================================================
+   Popups
+========================================================= */
+function buildTrailPopup(t) {
+  const name = escapeHtml(t?.name ?? "Trail");
+  const typeLabel = escapeHtml(t?.typeLabel ?? "");
+  const certainty = escapeHtml(t?.certainty ?? "");
+  const note = "Routes are simplified for educational context.";
+
+  return `
+    <div style="min-width:240px;">
+      <strong>${name}</strong>
+      ${typeLabel ? `<div style="opacity:.85;font-size:12px;margin-top:4px;">Type: ${typeLabel}</div>` : ""}
+      ${certainty ? `<div style="opacity:.7;font-size:12px;">Certainty: ${certainty}</div>` : ""}
+      <div style="opacity:.7;font-size:12px;margin-top:6px;">${note}</div>
+    </div>
+  `;
+}
+
+function buildRegionPopup(r) {
+  const name = escapeHtml(r?.name ?? "Region");
+  const typeLabel = escapeHtml(r?.typeLabel ?? "");
+  const certainty = escapeHtml(r?.certainty ?? "");
+  const body = escapeHtml(r?.body ?? "");
+  return `
+    <div style="min-width:240px;">
+      <strong>${name}</strong>
+      ${typeLabel ? `<div style="opacity:.85;font-size:12px;margin-top:4px;">Type: ${typeLabel}</div>` : ""}
+      ${certainty ? `<div style="opacity:.7;font-size:12px;">Certainty: ${certainty}</div>` : ""}
+      ${body ? `<div style="opacity:.85;font-size:12px;margin-top:6px;">${body}</div>` : ""}
+      <div style="opacity:.7;font-size:12px;margin-top:6px;">Overlays are simplified for educational context.</div>
+    </div>
+  `;
 }
 
 /* =========================================================
    Highlights
 ========================================================= */
+function clearRegionHighlights() {
+  for (const poly of regionPolygonsById.values()) {
+    poly.setStyle({ fillOpacity: poly.__baseFillOpacity ?? 0.18, opacity: 1 });
+  }
+}
+
+function highlightRegions(ids = []) {
+  for (const poly of regionPolygonsById.values()) {
+    poly.setStyle({ fillOpacity: 0.06, opacity: 0.35 });
+  }
+  for (const id of ids) {
+    const poly = regionPolygonsById.get(id);
+    if (poly) poly.setStyle({ fillOpacity: 0.24, opacity: 1 });
+  }
+}
+
 function clearTrailHighlights() {
   for (const poly of trailPolylinesById.values()) {
     poly.setStyle({ weight: poly.__baseWeight ?? 4, opacity: 0.8 });
@@ -98,40 +185,86 @@ function highlightTrails(ids = []) {
   }
 }
 
-function clearRegionHighlights() {
-  for (const poly of regionPolygonsById.values()) {
-    poly.setStyle({
-      fillOpacity: poly.__baseFillOpacity ?? 0.12,
-      opacity: 1,
+/* =========================================================
+   Tribes (lazy)
+========================================================= */
+async function ensureTribesLayerBuilt() {
+  if (tribesBuilt || tribesLoading) return;
+  tribesLoading = true;
+
+  const hasCluster = typeof L.markerClusterGroup === "function";
+  tribesLayer = hasCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 7 }) : L.layerGroup();
+
+  try {
+    const geojson = await fetchArcGisGeoJsonAll(TRIBAL_LEADERS_FS, {
+      where: "1=1",
+      outFields: "*",
+      pageSize: 2000,
     });
+
+    const geoLayer = L.geoJSON(geojson, {
+      pointToLayer: (_feature, latlng) =>
+        L.circleMarker(latlng, {
+          radius: 5,
+          fillColor: "#63ff8f",
+          color: "#000",
+          weight: 1,
+          fillOpacity: 0.8,
+        }),
+      onEachFeature: (feature, layer) => {
+        const p = feature?.properties || {};
+        const name = escapeHtml(
+          p?.Tribe_Full_Name ||
+            p?.TribeFullName ||
+            p?.TRIBE_FULL_NAME ||
+            p?.tribe_full_name ||
+            p?.name ||
+            "Tribal Headquarters"
+        );
+        const state = escapeHtml(p?.State || p?.STATE || p?.state || "");
+        layer.bindPopup(`
+          <div style="min-width:220px;">
+            <strong>${name}</strong>
+            ${state ? `<div style="opacity:.75;font-size:12px;margin-top:4px;">State: ${state}</div>` : ""}
+            <div style="opacity:.65;font-size:12px;margin-top:6px;">Source: BIA Tribal Leaders Directory</div>
+          </div>
+        `);
+      },
+    });
+
+    if (hasCluster) tribesLayer.addLayer(geoLayer);
+    else geoLayer.addTo(tribesLayer);
+
+    tribesBuilt = true;
+  } catch (e) {
+    console.error("Failed to load BIA tribal points:", e);
+  } finally {
+    tribesLoading = false;
   }
 }
 
-function highlightRegions(ids = []) {
-  for (const poly of regionPolygonsById.values()) {
-    poly.setStyle({ fillOpacity: 0.05, opacity: 0.35 });
-  }
-  for (const id of ids) {
-    const poly = regionPolygonsById.get(id);
-    if (poly) poly.setStyle({ fillOpacity: 0.18, opacity: 1 });
-  }
-}
-
-function applyChapterLayers(chapter) {
+/* =========================================================
+   Chapter layers + highlights
+========================================================= */
+async function applyChapterLayers(chapter) {
   const l = chapter?.layers || {};
 
-  // NEW: regions toggle
-  setLayerVisible(regionsLayer, !!l.regions);
+  // Regions default ON unless explicitly false
+  setLayerVisible(regionsLayer, l.regions !== false);
 
   setLayerVisible(trailsLayer, !!l.trails);
-  setLayerVisible(tribesLayer, !!l.tribes);
   setLayerVisible(placesLayer, !!l.places);
 
-  // NEW: region highlight
+  if (l.tribes) {
+    await ensureTribesLayerBuilt();
+    if (tribesLayer) setLayerVisible(tribesLayer, true);
+  } else {
+    if (tribesLayer) setLayerVisible(tribesLayer, false);
+  }
+
   if (chapter?.highlight?.regionIds?.length) highlightRegions(chapter.highlight.regionIds);
   else clearRegionHighlights();
 
-  // Existing: trail highlight
   if (chapter?.highlight?.trailIds?.length) highlightTrails(chapter.highlight.trailIds);
   else clearTrailHighlights();
 }
@@ -151,17 +284,17 @@ function scrollStepIntoView(idx) {
   const stepEl = document.querySelector(`.step[data-chapter="${c.id}"]`);
   if (!stepEl || !els.storyBody) return;
 
-  ignoreScrollUntil = Date.now() + 1400; // better on mobile
+  ignoreScrollUntil = Date.now() + 1400;
   stepEl.scrollIntoView({ behavior: "smooth", block: "center" });
   setActiveStep(stepEl);
 }
 
-function goToChapter(idx, { animate = true, scroll = false } = {}) {
+async function goToChapter(idx, { animate = true, scroll = false } = {}) {
   activeChapterIndex = Math.max(0, Math.min(CHAPTERS.length - 1, idx));
   const c = CHAPTERS[activeChapterIndex];
 
   updateHUD();
-  applyChapterLayers(c);
+  await applyChapterLayers(c);
 
   if (map && c?.view?.center) {
     const zoom = typeof c.view.zoom === "number" ? c.view.zoom : map.getZoom();
@@ -178,6 +311,7 @@ function onChapterEnter(chapterId) {
   if (!chapterId || chapterId === lastChapterId) return;
 
   lastChapterId = chapterId;
+
   const idx = CHAPTERS.findIndex((c) => c.id === chapterId);
   if (idx === -1) return;
 
@@ -187,9 +321,6 @@ function onChapterEnter(chapterId) {
   goToChapter(idx, { animate: true, scroll: false });
 }
 
-/* =========================================================
-   Scroll-driven chapters
-========================================================= */
 function setupScrollChapters() {
   const steps = Array.from(document.querySelectorAll(".step"));
   if (!steps.length) return;
@@ -214,85 +345,32 @@ function setupScrollChapters() {
 }
 
 /* =========================================================
-   Popups
-========================================================= */
-function buildTrailPopup(t) {
-  const name = t?.name ? escapeHtml(t.name) : "Trail";
-  const typeLabel = t?.typeLabel ? escapeHtml(t.typeLabel) : "";
-  const certainty = t?.certainty ? escapeHtml(t.certainty) : "";
-
-  const typeLine = typeLabel
-    ? `<div style="opacity:.85; font-size:12px; margin-top:4px;">Type: ${typeLabel}</div>`
-    : "";
-
-  const certaintyLine = certainty
-    ? `<div style="opacity:.7; font-size:12px;">Certainty: ${certainty}</div>`
-    : "";
-
-  return `
-    <div style="min-width: 220px;">
-      <strong>${name}</strong>
-      ${typeLine}
-      ${certaintyLine}
-      <div style="opacity:.7; font-size:12px; margin-top:6px;">
-        Routes are simplified for educational context.
-      </div>
-    </div>
-  `;
-}
-
-function buildRegionPopup(r) {
-  const name = r?.name ? escapeHtml(r.name) : "Region";
-  const typeLabel = r?.typeLabel ? escapeHtml(r.typeLabel) : "";
-  const certainty = r?.certainty ? escapeHtml(r.certainty) : "";
-  const body = r?.body ? escapeHtml(r.body) : "";
-
-  const typeLine = typeLabel
-    ? `<div style="opacity:.85; font-size:12px; margin-top:4px;">Type: ${typeLabel}</div>`
-    : "";
-
-  const certaintyLine = certainty
-    ? `<div style="opacity:.7; font-size:12px;">Certainty: ${certainty}</div>`
-    : "";
-
-  return `
-    <div style="min-width: 240px;">
-      <strong>${name}</strong>
-      ${typeLine}
-      ${certaintyLine}
-      ${body ? `<div style="opacity:.85; font-size:12px; margin-top:6px;">${body}</div>` : ""}
-      <div style="opacity:.7; font-size:12px; margin-top:6px;">
-        Region overlays are simplified for educational context.
-      </div>
-    </div>
-  `;
-}
-
-/* =========================================================
-   Map + layers
+   Layers
 ========================================================= */
 function setupLayers() {
-  // Regions (polygons)
+  // Regions
   regionsLayer = L.layerGroup();
   regionPolygonsById = new Map();
 
   for (const r of REGIONS) {
-    if (!r?.coords?.length) continue;
+    if (!Array.isArray(r?.coords) || r.coords.length < 3) continue;
 
     const style = r.style || {};
-    const baseFillOpacity = typeof style.fillOpacity === "number" ? style.fillOpacity : 0.12;
+    const baseFillOpacity = typeof style.fillOpacity === "number" ? style.fillOpacity : 0.18;
 
     const poly = L.polygon(r.coords, {
       color: style.color || "#ffffff",
-      weight: style.weight ?? 2,
+      fillColor: style.color || "#ffffff", // important: makes it visible
+      weight: typeof style.weight === "number" ? style.weight : 2,
       opacity: 1,
       fillOpacity: baseFillOpacity,
+      interactive: true,
     }).addTo(regionsLayer);
 
     poly.__baseFillOpacity = baseFillOpacity;
 
     if (r.id) regionPolygonsById.set(r.id, poly);
-    if (r.name) poly.bindPopup(buildRegionPopup(r));
+    poly.bindPopup(buildRegionPopup(r));
   }
   regionsLayer.addTo(map);
 
@@ -314,7 +392,7 @@ function setupLayers() {
     poly.__baseWeight = baseWeight;
 
     if (t.id) trailPolylinesById.set(t.id, poly);
-    if (t.name) poly.bindPopup(buildTrailPopup(t));
+    poly.bindPopup(buildTrailPopup(t));
   }
   trailsLayer.addTo(map);
 
@@ -324,6 +402,7 @@ function setupLayers() {
     if (typeof p?.lat !== "number" || typeof p?.lng !== "number") continue;
 
     const name = escapeHtml(p.name ?? "Place");
+    const type = escapeHtml(p.type ?? "");
     const body = escapeHtml(p.body ?? "");
 
     L.circleMarker([p.lat, p.lng], {
@@ -333,36 +412,29 @@ function setupLayers() {
       weight: 2,
       fillOpacity: 0.9,
     })
-      .bindPopup(`<strong>${name}</strong><p>${body}</p>`)
+      .bindPopup(`
+        <div style="min-width:240px;">
+          <strong>${name}</strong>
+          ${type ? `<div style="opacity:.75; font-size:12px; margin-top:4px;">Type: ${type}</div>` : ""}
+          ${body ? `<div style="margin-top:6px;">${body}</div>` : ""}
+        </div>
+      `)
       .addTo(placesLayer);
   }
   placesLayer.addTo(map);
 
-  // Tribes (cluster if available; fallback if not)
-  const hasCluster = typeof L.markerClusterGroup === "function";
-  tribesLayer = hasCluster ? L.markerClusterGroup({ disableClusteringAtZoom: 7 }) : L.layerGroup();
-
-  for (const tr of TRIBES) {
-    if (typeof tr?.lat !== "number" || typeof tr?.lng !== "number") continue;
-
-    const name = escapeHtml(tr.name ?? "Nation / Community");
-
-    L.circleMarker([tr.lat, tr.lng], {
-      radius: 5,
-      fillColor: "#63ff8f",
-      color: "#000",
-      weight: 1,
-      fillOpacity: 0.8,
-    })
-      .bindPopup(`<strong>${name}</strong>`)
-      .addTo(tribesLayer);
-  }
-  tribesLayer.addTo(map);
+  // Tribes are lazy-built
+  tribesLayer = null;
+  tribesBuilt = false;
+  tribesLoading = false;
 }
 
+/* =========================================================
+   Init + render
+========================================================= */
 function initMap() {
   if (!window.L) {
-    console.error("Leaflet not loaded. Ensure leaflet.js loads before app.js.");
+    console.error("Leaflet not loaded.");
     return;
   }
 
@@ -387,9 +459,6 @@ function initMap() {
   window.addEventListener("orientationchange", () => setTimeout(safeMapInvalidate, 350));
 }
 
-/* =========================================================
-   Render story + boot
-========================================================= */
 function renderStory() {
   if (!els.storyBody) return;
 
@@ -402,7 +471,6 @@ function renderStory() {
     `
   ).join("");
 
-  // Tap/click a chapter card to jump
   document.querySelectorAll(".step").forEach((stepEl) => {
     stepEl.style.cursor = "pointer";
     stepEl.addEventListener("pointerup", () => {
@@ -422,11 +490,8 @@ function boot() {
   renderStory();
   setupScrollChapters();
 
-  if (els.btnNext) els.btnNext.onclick = () =>
-    goToChapter(activeChapterIndex + 1, { animate: true, scroll: true });
-
-  if (els.btnPrev) els.btnPrev.onclick = () =>
-    goToChapter(activeChapterIndex - 1, { animate: true, scroll: true });
+  if (els.btnNext) els.btnNext.onclick = () => goToChapter(activeChapterIndex + 1, { animate: true, scroll: true });
+  if (els.btnPrev) els.btnPrev.onclick = () => goToChapter(activeChapterIndex - 1, { animate: true, scroll: true });
 
   setTimeout(initMap, 180);
 }
