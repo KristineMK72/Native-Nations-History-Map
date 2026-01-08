@@ -1,8 +1,23 @@
 // /data/chapters.js
+
+function commonsFilePath(fileName) {
+  return `https://commons.wikimedia.org/wiki/Special:FilePath/${encodeURIComponent(fileName)}`;
+}
+function commonsFilePage(fileName) {
+  return `https://commons.wikimedia.org/wiki/File:${encodeURIComponent(fileName)}`;
+}
+
 export const CHAPTERS = [
   {
     id: "begin",
     title: "Introduction",
+    image: {
+      src: commonsFilePath("North American cultural areas.png"),
+      alt: "Map of Indigenous cultural areas in North America at the time of European colonization.",
+      credit: "Nikater / Wikimedia Commons",
+      license: "Public domain",
+      href: commonsFilePage("North American cultural areas.png"),
+    },
     body: `
 This map is a guided overview of Indigenous histories across what is now the United States.
 It does not tell a single story—because there is no single Indigenous history.
@@ -23,6 +38,13 @@ Each chapter highlights patterns, not absolutes—and is meant to invite deeper 
   {
     id: "deep-time",
     title: "Deep Time and Indigenous Presence",
+    image: {
+      src: commonsFilePath("Beringia-Map Bathymetry web72 final.png"),
+      alt: "Map showing the ancient Beringia land bridge and surrounding bathymetry.",
+      credit: "National Park Service (via Wikimedia Commons)",
+      license: "Public domain (US federal government work; verify on file page)",
+      href: commonsFilePage("Beringia-Map Bathymetry web72 final.png"),
+    },
     body: `
 Indigenous Peoples have lived on and cared for these lands since time immemorial.
 
@@ -43,6 +65,13 @@ Neither replaces the other.
   {
     id: "northeast",
     title: "Northeast Woodlands",
+    image: {
+      src: commonsFilePath("Exterior view of traditional Iroquois longhouse.jpg"),
+      alt: "Exterior view of a traditional Iroquois longhouse.",
+      credit: "Wikimedia Commons contributor (see file page)",
+      license: "CC BY 2.0",
+      href: commonsFilePage("Exterior view of traditional Iroquois longhouse.jpg"),
+    },
     body: `
 The Northeast Woodlands supported dense populations long before European contact.
 Nations here developed sophisticated political systems, agriculture, diplomacy, and trade networks.
@@ -62,6 +91,13 @@ European arrival profoundly disrupted these systems through disease, land seizur
   {
     id: "southeast",
     title: "Southeast: Complex Societies and Removal",
+    image: {
+      src: commonsFilePath("Trails of Tears en.png"),
+      alt: "Map of the routes taken during the Trails of Tears forced relocations (1830s).",
+      credit: "Wikimedia Commons contributor (see file page)",
+      license: "License varies (verify on file page)",
+      href: commonsFilePage("Trails of Tears en.png"),
+    },
     body: `
 The Southeast was home to large, complex Indigenous societies with deep agricultural traditions.
 
@@ -80,6 +116,13 @@ Despite treaties and legal resistance, U.S. removal policies forcibly displaced 
   {
     id: "great-plains",
     title: "Great Plains Nations",
+    image: {
+      src: commonsFilePath("Bison herd.jpg"),
+      alt: "A herd of American bison on open grassland.",
+      credit: "USDA Agricultural Research Service (via Wikimedia Commons)",
+      license: "Public domain (US government work)",
+      href: commonsFilePage("Bison herd.jpg"),
+    },
     body: `
 The Great Plains were shaped by mobility, trade, and environmental knowledge.
 
@@ -100,6 +143,13 @@ They adapted rapidly to horses, trade, and shifting political realities—while 
   {
     id: "southwest",
     title: "Southwest: Continuity and Adaptation",
+    image: {
+      src: commonsFilePath("Chaco Canyon Chetro Ketl great kiva plaza NPS.jpg"),
+      alt: "Great kiva plaza at Chaco Canyon (Chetro Ketl), an important ancestral Puebloan site.",
+      credit: "National Park Service (via Wikimedia Commons)",
+      license: "Public domain (US federal government work)",
+      href: commonsFilePage("Chaco Canyon Chetro Ketl great kiva plaza NPS.jpg"),
+    },
     body: `
 Indigenous Nations of the Southwest developed some of the longest continuously inhabited communities in North America.
 
@@ -119,6 +169,13 @@ Spanish colonization brought violence, forced labor, and mission systems—but I
   {
     id: "california",
     title: "California: Diversity and Survival",
+    image: {
+      src: commonsFilePath("California tribes & languages at contact.png"),
+      alt: "Map of California tribal areas and languages at the time of European contact.",
+      credit: "Wikimedia Commons contributor (see file page)",
+      license: "License varies (verify on file page)",
+      href: commonsFilePage("California tribes & languages at contact.png"),
+    },
     body: `
 California contained one of the greatest concentrations of Indigenous linguistic and cultural diversity in the world.
 
@@ -138,6 +195,13 @@ Yet California Native Nations persist, revitalize languages, and assert sovereig
   {
     id: "pacific-northwest",
     title: "Pacific Northwest",
+    image: {
+      src: commonsFilePath("Pacific Northwest Totem Poles.jpg"),
+      alt: "Totem poles associated with Indigenous peoples of the Pacific Northwest.",
+      credit: "Gary Todd (via Wikimedia Commons)",
+      license: "CC0 (public domain dedication)",
+      href: commonsFilePage("Pacific Northwest Totem Poles.jpg"),
+    },
     body: `
 The Pacific Northwest supported large, permanent villages sustained by rich river and coastal ecosystems.
 
@@ -156,6 +220,13 @@ Colonization disrupted these systems through land seizure, bans on ceremony, and
   {
     id: "great-basin",
     title: "Great Basin and Plateau",
+    image: {
+      src: commonsFilePath("Big Rocks petroglyphs.jpg"),
+      alt: "Petroglyphs carved into rock in the Great Basin region.",
+      credit: "Bureau of Land Management (via Wikimedia Commons)",
+      license: "Public domain (US government work)",
+      href: commonsFilePage("Big Rocks petroglyphs.jpg"),
+    },
     body: `
 Indigenous Nations of the Great Basin and Plateau regions developed lifeways finely tuned to arid and mountainous environments.
 
@@ -174,6 +245,13 @@ U.S. expansion and reservation policies fragmented these systems, but Nations co
   {
     id: "policies",
     title: "U.S. Policy and Its Consequences",
+    image: {
+      src: commonsFilePath("Native American boarding school-school gardens.jpg"),
+      alt: "Historic photo associated with a Native American boarding school (students outdoors).",
+      credit: "Wikimedia Commons (historic photo; see file page)",
+      license: "Public domain (pre-1930 publication; verify on file page)",
+      href: commonsFilePage("Native American boarding school-school gardens.jpg"),
+    },
     body: `
 From the 19th to the 20th century, U.S. policy toward Indigenous Nations included:
 • removal
@@ -193,6 +271,13 @@ Their impacts continue to shape communities today.
   {
     id: "living-nations",
     title: "Living Nations Today",
+    image: {
+      src: commonsFilePath("National Pow Wow 2005 Straight Dancer.jpg"),
+      alt: "A straight dancer at the National Pow Wow (2005).",
+      credit: "Smithsonian Institution (via Wikimedia Commons)",
+      license: "Public domain (US federal government work)",
+      href: commonsFilePage("National Pow Wow 2005 Straight Dancer.jpg"),
+    },
     body: `
 Indigenous Nations are not historical artifacts—they are living political entities.
 
@@ -213,6 +298,13 @@ Real understanding comes from listening to Nation voices.
   {
     id: "continuing",
     title: "Continuing the Story",
+    image: {
+      src: commonsFilePath("Indigenous American Nations, 16th century - 2022 edition.jpg"),
+      alt: "Map showing approximate locations of Indigenous nations in what is now the United States during the 1500s (labeled where possible).",
+      credit: "Wikimedia Commons (see file page)",
+      license: "License varies (verify on file page)",
+      href: commonsFilePage("Indigenous American Nations, 16th century - 2022 edition.jpg"),
+    },
     body: `
 This map is unfinished by design.
 
