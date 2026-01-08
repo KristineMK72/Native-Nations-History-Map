@@ -360,7 +360,7 @@ function setupLayers() {
 
     const poly = L.polygon(r.coords, {
       color: style.color || "#ffffff",
-      fillColor: style.color || "#ffffff", // important: makes it visible
+      fillColor: style.color || "#ffffff",
       weight: typeof style.weight === "number" ? style.weight : 2,
       opacity: 1,
       fillOpacity: baseFillOpacity,
@@ -459,17 +459,47 @@ function initMap() {
   window.addEventListener("orientationchange", () => setTimeout(safeMapInvalidate, 350));
 }
 
+/* =========================================================
+   Story (sidebar) render
+========================================================= */
 function renderStory() {
   if (!els.storyBody) return;
 
-  els.storyBody.innerHTML = CHAPTERS.map(
-    (c) => `
-      <section class="step" data-chapter="${c.id}">
+  els.storyBody.innerHTML = CHAPTERS.map((c) => {
+    const img = c.image;
+
+    const imageHtml = img?.src
+      ? `
+        <figure class="chapter-figure">
+          <img
+            class="chapter-image"
+            src="${escapeHtml(img.src)}"
+            alt="${escapeHtml(img.alt || c.title)}"
+            loading="lazy"
+            referrerpolicy="no-referrer"
+          />
+          <figcaption class="chapter-credit">
+            ${
+              img.href
+                ? `<a href="${escapeHtml(img.href)}" target="_blank" rel="noreferrer">
+                     ${escapeHtml(img.credit || "Wikimedia Commons")}
+                   </a>`
+                : escapeHtml(img.credit || "Wikimedia Commons")
+            }
+            ${img.license ? ` <span class="chapter-license">— ${escapeHtml(img.license)}</span>` : ""}
+          </figcaption>
+        </figure>
+      `
+      : "";
+
+    return `
+      <section class="step" data-chapter="${escapeHtml(c.id)}">
         <h2>${escapeHtml(c.title)}</h2>
-        <p>${escapeHtml(String(c.body).trim()).replaceAll("\n", "<br>")}</p>
+        ${imageHtml}
+        <p>${escapeHtml(String(c.body || "").trim())}</p>
       </section>
-    `
-  ).join("");
+    `;
+  }).join("");
 
   document.querySelectorAll(".step").forEach((stepEl) => {
     stepEl.style.cursor = "pointer";
