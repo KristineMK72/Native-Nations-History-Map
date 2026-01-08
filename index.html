@@ -29,19 +29,21 @@
     <div id="app">
       <aside id="story">
         <div id="storyBody"></div>
-        <div style="display:flex; gap:10px; padding:12px; border-top:1px solid rgba(255,255,255,.08);">
-          <button id="btnPrev">Prev</button>
-          <button id="btnNext">Next</button>
+
+        <div id="controls">
+          <button id="btnPrev" type="button">Prev</button>
+          <button id="btnNext" type="button">Next</button>
         </div>
       </aside>
 
       <section id="mapWrap">
         <div id="map"></div>
+
         <div id="hud">
           <div id="hudChapterTitle"></div>
           <div id="progressText"></div>
-          <div style="height:6px; background:rgba(255,255,255,.12); border-radius:999px; overflow:hidden;">
-            <div id="progressFill" style="height:100%; width:0%; background:rgba(255,255,255,.7);"></div>
+          <div id="progressBar">
+            <div id="progressFill"></div>
           </div>
         </div>
       </section>
