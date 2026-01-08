@@ -59,13 +59,44 @@ body {
   margin: 0;
   line-height: 1.55;
   opacity: 0.95;
-  white-space: pre-line;
+  white-space: pre-line; /* preserves your multiline body text */
 }
 
 .step.active {
   outline: 2px solid rgba(255,255,255,0.18);
   background: rgba(255,255,255,0.06);
   transform: translateY(-1px);
+}
+
+/* Chapter images inside sidebar steps */
+.chapter-figure {
+  margin: 10px 0 12px;
+}
+
+.chapter-image {
+  width: 100%;
+  height: auto;
+  max-height: 220px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.02);
+}
+
+.chapter-credit {
+  margin-top: 6px;
+  font-size: 12px;
+  opacity: 0.82;
+  line-height: 1.25;
+}
+
+.chapter-credit a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+.chapter-license {
+  opacity: 0.9;
 }
 
 /* Controls (Prev/Next area) */
