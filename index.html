@@ -1,4 +1,66 @@
-<!-- index.html -->
+<!-- index.html --><!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Native Nations History Map</title>
+
+    <!-- IMPORTANT: use relative paths -->
+    <link rel="stylesheet" href="./styles.css" />
+
+    <!-- Social thumbnail -->
+    <meta property="og:title" content="Native Nations History Map" />
+    <meta
+      property="og:description"
+      content="A guided, map-based overview of Indigenous histories across what is now the United States."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://native-nations-history-map.vercel.app/" />
+    <meta property="og:image" content="https://native-nations-history-map.vercel.app/nativemapthumbnail.png" />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+    <!-- MarkerCluster CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  </head>
+
+  <body>
+    <div id="app">
+      <aside id="story">
+        <div id="storyBody"></div>
+
+        <div id="controls">
+          <button id="btnPrev" type="button">Prev</button>
+          <button id="btnNext" type="button">Next</button>
+        </div>
+      </aside>
+
+      <section id="mapWrap">
+        <div id="map"></div>
+
+        <div id="hud">
+          <div id="hudChapterTitle"></div>
+          <div id="progressText"></div>
+          <div id="progressBar">
+            <div id="progressFill"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- MarkerCluster JS -->
+    <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+    <!-- IMPORTANT: use relative path -->
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
 <!doctype html>
 <html lang="en">
   <head>
