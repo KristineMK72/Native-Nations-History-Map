@@ -5,10 +5,13 @@
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <title>Native Nations History Map</title>
 
-    <!-- CSS -->
-    <link rel="stylesheet" href="./styles.css" />
+    <!-- Basic description -->
+    <meta
+      name="description"
+      content="A guided, map-based overview of Indigenous histories across what is now the United States."
+    />
 
-    <!-- Open Graph (Facebook/LinkedIn/iMessage/etc) -->
+    <!-- Open Graph (Facebook, iMessage, LinkedIn, etc.) -->
     <meta property="og:title" content="Native Nations History Map" />
     <meta
       property="og:description"
@@ -16,11 +19,15 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://native-nations-history-map.vercel.app/" />
+
+    <!-- IMPORTANT: this must be a direct, public image URL -->
     <meta property="og:image" content="https://native-nations-history-map.vercel.app/nativemapthumbnail.png" />
+    <meta property="og:image:secure_url" content="https://native-nations-history-map.vercel.app/nativemapthumbnail.png" />
+    <meta property="og:image:type" content="image/png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
 
-    <!-- Twitter/X -->
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Native Nations History Map" />
     <meta
@@ -28,6 +35,12 @@
       content="A guided, map-based overview of Indigenous histories across what is now the United States."
     />
     <meta name="twitter:image" content="https://native-nations-history-map.vercel.app/nativemapthumbnail.png" />
+
+    <!-- Favicon (optional but recommended) -->
+    <link rel="icon" href="/favicon.ico" />
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/styles.css" />
 
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -68,6 +81,6 @@
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
 
     <!-- App -->
-    <script type="module" src="./app.js"></script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>
