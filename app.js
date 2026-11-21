@@ -6,9 +6,12 @@ import { REGIONS } from "./data/regions.js";
 const $ = (id) => document.getElementById(id);
 
 const els = {
+  story: $("story"),
   storyBody: $("storyBody"),
+  storyHeader: $("storyHeader"),
   btnPrev: $("btnPrev"),
   btnNext: $("btnNext"),
+  btnStories: $("btnStories"),
   hudChapterTitle: $("hudChapterTitle"),
   progressText: $("progressText"),
   progressFill: $("progressFill"),
@@ -26,6 +29,7 @@ let tribesLayer = null;
 let activeChapterIndex = 0;
 let lastChapterId = null;
 let ignoreScrollUntil = 0;
+let storyCollapsed = false;
 
 // Highlights
 let regionPolygonsById = new Map();
@@ -35,21 +39,15 @@ let trailPolylinesById = new Map();
 let tribesBuilt = false;
 let tribesLoading = false;
 
-/* =========================================================
-   BIA Tribal Leaders Directory (ArcGIS FeatureServer)
-========================================================= */
 const TRIBAL_LEADERS_FS =
   "https://services1.arcgis.com/UxqqIfhng71wUT9x/arcgis/rest/services/TribalLeadership_Directory/FeatureServer/0";
 
-/* =========================================================
-   Utilities
-========================================================= */
 function escapeHtml(s = "") {
   return String(s)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
+    .replaceAll("&", "&")
+    .replaceAll("<", "<")
+    .replaceAll(">", ">")
+    .replaceAll('"', """)
     .replaceAll("'", "&#039;");
 }
 
@@ -84,9 +82,24 @@ function nl2brSafe(text) {
   return escapeHtml(String(text ?? "")).replaceAll("\n", "<br>");
 }
 
-/* =========================================================
-   ArcGIS fetch helpers (GeoJSON pagination)
-========================================================= */
+function isMobile() {
+  return window.innerWidth <= 900;
+}
+
+function toggleStory(forceOpen = null) {
+  if (!els.story) return;
+  if (forceOpen === true) storyCollapsed = false;
+  else if (forceOpen === false) storyCollapsed = true;
+  else storyCollapsed = !storyCollapsed;
+
+  els.story.classList.toggle("collapsed", storyCollapsed);
+  if (els.btnStories) {
+    els.btnStories.textContent = storyCollapsed ? "Stories" : "Map";
+  }
+  setTimeout(safeMapInvalidate, 100);
+  setTimeout(safeMapInvalidate, 400);
+}
+
 async function fetchArcGisGeoJsonAll(urlBase, { where = "1=1", outFields = "*", pageSize = 2000 } = {}) {
   const features = [];
   let offset = 0;
@@ -118,9 +131,6 @@ async function fetchArcGisGeoJsonAll(urlBase, { where = "1=1", outFields = "*", 
   return { type: "FeatureCollection", features };
 }
 
-/* =========================================================
-   Popup helpers
-========================================================= */
 function renderSources(sources = []) {
   if (!Array.isArray(sources) || !sources.length) return "";
   const items = sources
@@ -160,9 +170,6 @@ function renderImage(image) {
   `;
 }
 
-/* =========================================================
-   Popups: trails + regions
-========================================================= */
 function buildTrailPopup(t) {
   const name = escapeHtml(t?.name ?? "Trail");
   const typeLabel = escapeHtml(t?.typeLabel ?? "");
@@ -195,9 +202,6 @@ function buildRegionPopup(r) {
   `;
 }
 
-/* =========================================================
-   Highlights
-========================================================= */
 function clearRegionHighlights() {
   for (const poly of regionPolygonsById.values()) {
     poly.setStyle({ fillOpacity: poly.__baseFillOpacity ?? 0.18, opacity: 1 });
@@ -230,9 +234,6 @@ function highlightTrails(ids = []) {
   }
 }
 
-/* =========================================================
-   Tribes (lazy)
-========================================================= */
 async function ensureTribesLayerBuilt() {
   if (tribesBuilt || tribesLoading) return;
   tribesLoading = true;
@@ -288,9 +289,6 @@ async function ensureTribesLayerBuilt() {
   }
 }
 
-/* =========================================================
-   Chapter layers + highlights
-========================================================= */
 async function applyChapterLayers(chapter) {
   const l = chapter?.layers || {};
 
@@ -312,9 +310,6 @@ async function applyChapterLayers(chapter) {
   else clearTrailHighlights();
 }
 
-/* =========================================================
-   HUD + navigation
-========================================================= */
 function updateHUD() {
   const c = CHAPTERS[activeChapterIndex];
   setText(els.hudChapterTitle, c?.title ?? "Chapter");
@@ -347,6 +342,9 @@ async function goToChapter(idx, { animate = true, scroll = false } = {}) {
   }
 
   if (scroll) scrollStepIntoView(activeChapterIndex);
+
+  // On mobile, briefly ensure story is open when navigating via buttons
+  if (isMobile() && scroll) toggleStory(true);
 }
 
 function onChapterEnter(chapterId) {
@@ -387,11 +385,7 @@ function setupScrollChapters() {
   steps.forEach((s) => io.observe(s));
 }
 
-/* =========================================================
-   Layers
-========================================================= */
 function setupLayers() {
-  // Regions
   regionsLayer = L.layerGroup();
   regionPolygonsById = new Map();
 
@@ -417,7 +411,6 @@ function setupLayers() {
   }
   regionsLayer.addTo(map);
 
-  // Trails
   trailsLayer = L.layerGroup();
   trailPolylinesById = new Map();
 
@@ -439,7 +432,6 @@ function setupLayers() {
   }
   trailsLayer.addTo(map);
 
-  // Places (with images + sources)
   placesLayer = L.layerGroup();
 
   for (const p of PLACES) {
@@ -472,15 +464,11 @@ function setupLayers() {
 
   placesLayer.addTo(map);
 
-  // Tribes are lazy-built
   tribesLayer = null;
   tribesBuilt = false;
   tribesLoading = false;
 }
 
-/* =========================================================
-   Init + render
-========================================================= */
 function initMap() {
   if (!window.L) {
     console.error("Leaflet not loaded.");
@@ -504,13 +492,13 @@ function initMap() {
 
   goToChapter(0, { animate: false, scroll: true });
 
-  window.addEventListener("resize", safeMapInvalidate);
+  window.addEventListener("resize", () => {
+    safeMapInvalidate();
+    if (!isMobile() && storyCollapsed) toggleStory(true);
+  });
   window.addEventListener("orientationchange", () => setTimeout(safeMapInvalidate, 350));
 }
 
-/* =========================================================
-   Story (sidebar) render
-========================================================= */
 function renderStory() {
   if (!els.storyBody) return;
 
@@ -571,6 +559,21 @@ function boot() {
 
   if (els.btnNext) els.btnNext.onclick = () => goToChapter(activeChapterIndex + 1, { animate: true, scroll: true });
   if (els.btnPrev) els.btnPrev.onclick = () => goToChapter(activeChapterIndex - 1, { animate: true, scroll: true });
+
+  if (els.btnStories) {
+    els.btnStories.onclick = () => toggleStory();
+  }
+
+  if (els.storyHeader) {
+    els.storyHeader.onclick = () => {
+      if (isMobile()) toggleStory();
+    };
+  }
+
+  // Start collapsed on mobile for better map visibility
+  if (isMobile()) {
+    setTimeout(() => toggleStory(false), 300);
+  }
 
   setTimeout(initMap, 120);
 }
