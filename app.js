@@ -43,11 +43,15 @@ const TRIBAL_LEADERS_FS =
   "https://services1.arcgis.com/UxqqIfhng71wUT9x/arcgis/rest/services/TribalLeadership_Directory/FeatureServer/0";
 
 function escapeHtml(s = "") {
+  const amp = "&" + "amp;";
+  const lt = "&" + "lt;";
+  const gt = "&" + "gt;";
+  const quot = "&" + "quot;";
   return String(s)
-    .replaceAll("&", "&")
-    .replaceAll("<", "<")
-    .replaceAll(">", ">")
-    .replaceAll('"', """)
+    .replaceAll("&", amp)
+    .replaceAll("<", lt)
+    .replaceAll(">", gt)
+    .replaceAll('"', quot)
     .replaceAll("'", "&#039;");
 }
 
