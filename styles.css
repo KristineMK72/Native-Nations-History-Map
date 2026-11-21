@@ -81,15 +81,6 @@ h1, h2, h3, button, #hud, .site-header, .site-footer {
   margin-top: 1px;
 }
 
-.site-wise {
-  font-size: 0.82rem;
-  color: var(--accent);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  font-weight: 500;
-  white-space: nowrap;
-}
-
 .heart {
   display: inline-block;
   color: #e07a5f;
@@ -336,7 +327,7 @@ button:hover { background: rgba(255,255,255,0.12); }
 .footer-left {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 }
 
 .footer-brand {
@@ -345,12 +336,15 @@ button:hover { background: rgba(255,255,255,0.12); }
   letter-spacing: 0.02em;
 }
 
+/* AskBen-style wise phrase (IM Fell English) */
 .footer-wise {
-  letter-spacing: 0.1em;
+  font-family: "IM Fell English", Georgia, serif;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--accent);
-  font-size: 0.72rem;
-  font-weight: 500;
+  color: #fcd34d;
+  font-size: 0.78rem;
+  font-weight: 400;
+  white-space: nowrap;
 }
 
 .footer-center {
@@ -425,7 +419,6 @@ button:hover { background: rgba(255,255,255,0.12); }
 
   .brand-title { font-size: 0.98rem; }
   .brand-sub { font-size: 0.68rem; }
-  .site-wise { font-size: 0.75rem; }
 
   .site-footer {
     padding: 0 12px;
@@ -433,7 +426,11 @@ button:hover { background: rgba(255,255,255,0.12); }
   }
 
   .footer-center { display: none; }
-  .footer-wise { display: none; }
+
+  .footer-wise {
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+  }
 
   #app {
     grid-template-columns: 1fr;
