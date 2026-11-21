@@ -6,16 +6,13 @@
 
     <title>Native Nations History Map</title>
 
-    <!-- Primary description -->
     <meta
       name="description"
       content="A guided, map-based overview of Indigenous histories across what is now the United States."
     />
 
-    <!-- Canonical URL -->
     <link rel="canonical" href="https://native-nations-history-map.vercel.app/" />
 
-    <!-- Open Graph (Facebook, iMessage, LinkedIn) -->
     <meta property="og:title" content="Native Nations History Map" />
     <meta
       property="og:description"
@@ -23,14 +20,8 @@
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://native-nations-history-map.vercel.app/" />
-
-    <!-- ✅ CORRECT IMAGE FILENAME -->
     <meta
       property="og:image"
-      content="https://native-nations-history-map.vercel.app/nativenationsthumbnail.png"
-    />
-    <meta
-      property="og:image:secure_url"
       content="https://native-nations-history-map.vercel.app/nativenationsthumbnail.png"
     />
     <meta property="og:image:type" content="image/png" />
@@ -41,7 +32,6 @@
       content="Native Nations History Map — Indigenous history story map"
     />
 
-    <!-- Twitter / X -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Native Nations History Map" />
     <meta
@@ -53,16 +43,20 @@
       content="https://native-nations-history-map.vercel.app/nativenationsthumbnail.png"
     />
 
-    <!-- Styles -->
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;1,8..60,400&display=swap"
+      rel="stylesheet"
+    />
+
     <link rel="stylesheet" href="/styles.css" />
 
-    <!-- Leaflet CSS -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
     />
-
-    <!-- MarkerCluster CSS -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css"
@@ -76,6 +70,13 @@
   <body>
     <div id="app">
       <aside id="story">
+        <div id="storyHeader">
+          <div>
+            <h1>Echoes of the Land</h1>
+            <p>Indigenous histories across North America</p>
+          </div>
+        </div>
+
         <div id="storyBody"></div>
 
         <div id="controls">
@@ -87,6 +88,8 @@
       <section id="mapWrap">
         <div id="map"></div>
 
+        <button id="btnStories" type="button" aria-label="Toggle stories">Stories</button>
+
         <div id="hud">
           <div id="hudChapterTitle"></div>
           <div id="progressText"></div>
@@ -97,13 +100,8 @@
       </section>
     </div>
 
-    <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-    <!-- MarkerCluster JS -->
     <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
-
-    <!-- App -->
     <script type="module" src="/app.js"></script>
   </body>
 </html>
